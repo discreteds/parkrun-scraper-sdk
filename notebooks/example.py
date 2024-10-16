@@ -49,4 +49,6 @@ def ExampleUsage():
 
     print("Done")
 
-ExampleUsage()
+# ExampleUsage()
+
+parkrun.Country.GetAllCountries()

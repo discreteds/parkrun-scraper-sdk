@@ -1,0 +1,62 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "parkrun_api"
+dynamic = ["version"]
+description = 'Mountain Ash - Parkrun'
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+keywords = []
+authors = [
+  { name = "Nathaniel Ramm", email = "nathaniel.ramm@discretedatascience.com" },
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = [
+  "pip",
+  "ipynb",
+  "uv",
+  "hatch",
+  "requests",
+  "beautifulsoup4",
+  "flask",
+  "flask-limiter",
+]
+
+
+[project.urls]
+Documentation = "https://github.com/mountainash-io/mountainash-utils-dataclasses#readme"
+Issues = "https://github.com/mountainash-io/mountainash-utils-dataclasses/issues"
+Source = "https://github.com/mountainash-io/mountainash-utils-dataclasses"
+
+#================
+# Tool: Coverage
+#================
+[tool.coverage.run]
+source_pkgs = ["parkrun_api", "tests"]
+branch = true
+parallel = true
+omit = [
+  "src/parkrun_api/__version__.py",
+]
+
+[tool.coverage.paths]
+parkrun_api = ["src/parkrun_api", "*/parkrun-api/src/parkrun_api"]
+tests = ["tests", "*/parkrun-api/tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__:",
+  "if TYPE_CHECKING:",
+]

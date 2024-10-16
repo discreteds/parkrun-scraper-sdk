@@ -3,51 +3,99 @@ from bs4 import BeautifulSoup
 import math
 import time
 
-session = requests.Session()
-session.headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:93.0) Gecko/20100101 Firefox/93.0",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.5",
-    "Accept-Encoding": "gzip, deflate, br",
-    "DNT": "1",
-    "Connection": "keep-alive",
-    "Upgrade-Insecure-Requests": "1",
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "none",
-    "Sec-Fetch-User": "?1"
-}
 
-class Country:
+def _create_session():
+    session = requests.Session()
+    session.headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:93.0) Gecko/20100101 Firefox/93.0",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Accept-Encoding": "gzip, deflate, br",
+        "DNT": "1",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1"
+    }
 
-    def __init__(self, _id=None, _url=None):
+    return session
+
+class BaseScraper:
+
+    session: requests.Session
+
+    @classmethod
+    def create_session(cls):
+
+        session = requests.Session()
+        session.headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:93.0) Gecko/20100101 Firefox/93.0",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Accept-Encoding": "gzip, deflate, br",
+            "DNT": "1",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Sec-Fetch-User": "?1"
+        }
+
+        cls.session = session
+
+    @classmethod
+    def init_session(cls, session=None):
+
+        if session is not None:
+            cls.session = session
+
+        if cls.session is None:
+            BaseScraper.create_session()
+
+
+
+class Country(BaseScraper):
+
+    session: requests.Session
+
+
+    def __init__(self, _id=None, _url=None, session=None):
+
+        self.init_session(session)
 
         self.id = _id
         self.url = _url
 
         pass
 
-    @staticmethod
-    def GetAllCountries():
+    @classmethod
+    def GetAllCountries(cls):
+
+        cls.init_session()
 
         countries = []
 
-        countriesJson = session.get("https://images.parkrun.com/events.json").json()["countries"]
+        countriesJson = cls.session.get("https://images.parkrun.com/events.json").json()["countries"]
 
         for countryKey in countriesJson:
 
             country = Country(
                 _id=countryKey, 
-                _url="https://" + countriesJson[countryKey]["url"]
+                _url= f"https://{countriesJson[countryKey]["url"]}"
                 )
 
             countries.append(country)
 
         return countries
 
-class Event:
+class Event(BaseScraper):
 
-    def __init__(self, _id=None, _name=None, _longName=None, _shortName=None, _countryCode=None, _seriesId=None, _location=None, _url=None):
+    def __init__(self, _id=None, _name=None, _longName=None, _shortName=None, _countryCode=None, _seriesId=None, _location=None, _url=None, session=None):
+
+        self.init_session(session)
 
         self.id = _id
         self.name = _name
@@ -60,12 +108,14 @@ class Event:
         
         pass
 
-    @staticmethod
-    def GetAllEvents():
+    @classmethod
+    def GetAllEvents(cls):
+
+        cls.init_session()
 
         events = []
 
-        eventsJson = session.get("https://images.parkrun.com/events.json").json()["events"]["features"]
+        eventsJson = cls.session.get("https://images.parkrun.com/events.json").json()["events"]["features"]
 
         for event in eventsJson:
 
@@ -83,8 +133,9 @@ class Event:
 
         return events
 
-    @staticmethod
-    def UpdateEventUrls(events, countries):
+    @classmethod
+    def UpdateEventUrls(cls, events, countries):
+
 
         for country in countries:
 
@@ -96,9 +147,13 @@ class Event:
 
         return events
 
-class Result():
+class Result(BaseScraper):
 
-    def __init__(self, _name=None, _ageGroup=None, _club=None, _gender=None, _position=None, _runs=None, _ageGrade=None, _achievement=None):
+    def __init__(self, _name=None, _ageGroup=None, _club=None, _gender=None, _position=None, _runs=None, _ageGrade=None, _achievement=None, session=None):
+
+        self.init_session(session)
+
+
 
         self.name = _name
         self.ageGroup = _ageGroup
@@ -111,12 +166,12 @@ class Result():
 
         pass
 
-    @staticmethod
-    def GetResults(event, eventNumber):
+    @classmethod
+    def GetResults(cls, event, eventNumber):
 
         results = []
 
-        resultsHTML = session.get(event.url + "results/{eventNumber}/").text
+        resultsHTML = cls.session.get(event.url + "results/{eventNumber}/").text
 
         resultsSoup = BeautifulSoup(resultsHTML, "html.parser")
         resultRows = resultsSoup.findAll("tr", {"class": "Results-table-row"})
@@ -138,14 +193,18 @@ class Result():
 
         return results
 
-    @staticmethod
-    def GetLatestResults(event):
+    @classmethod
+    def GetLatestResults(cls, event):
 
         return Result.GetResults(event, "latestresults")
 
-class EventHistory():
+class EventHistory(BaseScraper):
 
-    def __init__(self, _eventNumber=None, _date=None, _finishers=None, _volunteers=None, _male=None, _female=None, _maleTime=None, _femaleTime=None):
+    def __init__(self, _eventNumber=None, _date=None, _finishers=None, _volunteers=None, _male=None, _female=None, _maleTime=None, _femaleTime=None, session=None):
+
+        self.init_session(session)
+
+
 
         self.eventNumber = _eventNumber
         self.date = _date
@@ -158,12 +217,14 @@ class EventHistory():
 
         pass
 
-    @staticmethod
-    def GetEventHistorys(event):
+    @classmethod
+    def GetEventHistorys(cls, event):
+
+        cls.init_session()
 
         eventHistorys = []
 
-        eventHistoryHTML = session.get(event.url + "results/eventhistory/").text
+        eventHistoryHTML = cls.session.get(event.url + "results/eventhistory/").text
 
         eventHistorySoup = BeautifulSoup(eventHistoryHTML, "html.parser")
         eventHistoryRows = eventHistorySoup.findAll("tr", {"class": "Results-table-row"})
@@ -185,9 +246,12 @@ class EventHistory():
 
         return eventHistorys
 
-class FirstFinisher():
+class FirstFinisher(BaseScraper):
 
-    def __init__(self, _parkRunner=None, _firstPlaceFinishes=None, _bestTime=None, _sex=None):
+    def __init__(self, _parkRunner=None, _firstPlaceFinishes=None, _bestTime=None, _sex=None, session=None):
+
+        self.init_session(session)
+
 
         self.parkRunner = _parkRunner
         self.firstPlaceFinishes = _firstPlaceFinishes
@@ -196,12 +260,15 @@ class FirstFinisher():
 
         pass
 
-    @staticmethod
-    def GetFirstFinishers(event):
+    @classmethod
+    def GetFirstFinishers(cls, event):
+
+        cls.init_session()
+
 
         firstFinishers = []
 
-        firstFinishersHTML = session.get(event.url + "results/firstfinishescount/").text
+        firstFinishersHTML = cls.session.get(event.url + "results/firstfinishescount/").text
 
         firstFinishersSoup = BeautifulSoup(firstFinishersHTML, "html.parser")
         firstFinishersRows = firstFinishersSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -221,9 +288,12 @@ class FirstFinisher():
 
         return firstFinishers
 
-class AgeCategoryRecord():
+class AgeCategoryRecord(BaseScraper):
 
-    def __init__(self, _ageCategory=None, _eventNumber=None, _date=None, _parkRunner=None, _time=None, _ageGrade=None):
+    def __init__(self, _ageCategory=None, _eventNumber=None, _date=None, _parkRunner=None, _time=None, _ageGrade=None, session=None):
+
+        self.init_session(session)
+
 
         self.ageCategory = _ageCategory
         self.eventNumber = _eventNumber
@@ -234,12 +304,14 @@ class AgeCategoryRecord():
 
         pass
 
-    @staticmethod
-    def GetAgeCategoryRecords(event):
+    @classmethod
+    def GetAgeCategoryRecords(cls, event):
+
+        cls.init_session()
 
         getAgeCategoryRecords = []
 
-        getAgeCategoryRecordsHTML = session.get(event.url + "results/agecategoryrecords/").text
+        getAgeCategoryRecordsHTML = cls.session.get(event.url + "results/agecategoryrecords/").text
 
         getAgeCategoryRecordsSoup = BeautifulSoup(getAgeCategoryRecordsHTML, "html.parser")
         getAgeCategoryRecordsRows = getAgeCategoryRecordsSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -261,9 +333,12 @@ class AgeCategoryRecord():
 
         return getAgeCategoryRecords
 
-class Club():
+class Club(BaseScraper):
 
-    def __init__(self, _name=None, _numberOfParkrunners=None, _numberOfRuns=None, _clubHomePage=None):
+    def __init__(self, _name=None, _numberOfParkrunners=None, _numberOfRuns=None, _clubHomePage=None, session=None):
+
+        self.init_session(session)
+
 
         self.name = _name
         self.numberOfParkrunners = _numberOfParkrunners
@@ -272,12 +347,14 @@ class Club():
 
         pass
 
-    @staticmethod
-    def GetClubs(event):
+    @classmethod
+    def GetClubs(cls, event):
+
+        cls.init_session()
 
         clubs = []
 
-        clubsHTML = session.get(event.url + "results/clublist/").text
+        clubsHTML = cls.session.get(event.url + "results/clublist/").text
 
         clubsSoup = BeautifulSoup(clubsHTML, "html.parser")
         clubRows = clubsSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -297,12 +374,15 @@ class Club():
 
         return clubs
 
-    @staticmethod
-    def GetLargestClubsGlobally():
+    @classmethod
+    def GetLargestClubsGlobally(cls):
+
+        cls.init_session()
+
 
         clubs = []
 
-        clubsHTML = session.get("https://www.parkrun.com/results/largestclubs/").text
+        clubsHTML = cls.session.get("https://www.parkrun.com/results/largestclubs/").text
 
         clubsSoup = BeautifulSoup(clubsHTML, "html.parser")
         clubRows = clubsSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -322,9 +402,12 @@ class Club():
 
         return clubs
 
-class Sub20Woman():
+class Sub20Woman(BaseScraper):
 
-    def __init__(self, _rank=None, _parkRunner=None, _numberOfRuns=None, _fastestTime=None, _club=None):
+    def __init__(self, _rank=None, _parkRunner=None, _numberOfRuns=None, _fastestTime=None, _club=None, session=None):
+
+        self.init_session(session)
+
 
         self.rank = _rank
         self.parkRunner = _parkRunner
@@ -334,12 +417,15 @@ class Sub20Woman():
 
         pass
 
-    @staticmethod
-    def GetSub20Women(event):
+    @classmethod
+    def GetSub20Women(cls, event):
+
+        cls.init_session()
+
 
         sub20Women = []
 
-        sub20WomenHTML = session.get(event.url + "results/sub20women/").text
+        sub20WomenHTML = cls.session.get(event.url + "results/sub20women/").text
 
         sub20WomenSoup = BeautifulSoup(sub20WomenHTML, "html.parser")
         sub20WomenRows = sub20WomenSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -360,9 +446,12 @@ class Sub20Woman():
 
         return sub20Women
 
-class Sub17Man():
+class Sub17Man(BaseScraper):
 
-    def __init__(self, _rank=None, _parkRunner=None, _numberOfRuns=None, _fastestTime=None, _club=None):
+    def __init__(self, _rank=None, _parkRunner=None, _numberOfRuns=None, _fastestTime=None, _club=None, session=None):
+
+        self.init_session(session)
+
 
         self.rank = _rank
         self.parkRunner = _parkRunner
@@ -372,12 +461,14 @@ class Sub17Man():
 
         pass
 
-    @staticmethod
-    def GetSub17Men(event):
+    @classmethod
+    def GetSub17Men(cls, event):
+
+        cls.init_session()
 
         sub17Men = []
 
-        sub17MenHTML = session.get(event.url + "results/sub17men/").text
+        sub17MenHTML = cls.session.get(event.url + "results/sub17men/").text
 
         sub17MenSoup = BeautifulSoup(sub17MenHTML, "html.parser")
         sub17MenRows = sub17MenSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -398,9 +489,12 @@ class Sub17Man():
 
         return sub17Men
 
-class AgeGradedLeagueRank():
+class AgeGradedLeagueRank(BaseScraper):
 
-    def __init__(self, _rank=None, _parkRunner=None, _ageGrade=None):
+    def __init__(self, _rank=None, _parkRunner=None, _ageGrade=None, session=None):
+
+        self.init_session(session)
+
 
         self.rank = _rank
         self.parkRunner = _parkRunner
@@ -408,8 +502,10 @@ class AgeGradedLeagueRank():
 
         pass
 
-    @staticmethod
-    def GetAgeGradedLeagueRanks(event, quantity=1000):
+    @classmethod
+    def GetAgeGradedLeagueRanks(cls, event, quantity=1000):
+
+        cls.init_session()
 
         ageGradedLeagueRanks = []
 
@@ -420,7 +516,7 @@ class AgeGradedLeagueRank():
             # To avoid hammering server
             time.sleep(0.25)
 
-            ageGradedLeagueRanksHTML = session.get(event.url + f"results/agegradedleague/?resultSet={resultSet}").text
+            ageGradedLeagueRanksHTML = cls.session.get(event.url + f"results/agegradedleague/?resultSet={resultSet}").text
 
             ageGradedLeagueRanksSoup = BeautifulSoup(ageGradedLeagueRanksHTML, "html.parser")
             ageGradedLeagueRanksRows = ageGradedLeagueRanksSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -442,9 +538,12 @@ class AgeGradedLeagueRank():
 
         return ageGradedLeagueRanks
 
-class Fastest():
+class Fastest(BaseScraper):
 
-    def __init__(self, _rank=None, _parkRunner=None, _numberOfRuns=None, _sex=None, _fastestTime=None, _club=None):
+    def __init__(self, _rank=None, _parkRunner=None, _numberOfRuns=None, _sex=None, _fastestTime=None, _club=None, session=None):
+
+        self.init_session(session)
+
 
         self.rank = _rank
         self.parkRunner = _parkRunner
@@ -455,12 +554,14 @@ class Fastest():
 
         pass
 
-    @staticmethod
-    def GetFastest500(event):
+    @classmethod
+    def GetFastest500(cls, event):
+
+        cls.init_session()
 
         fastest500 = []
 
-        fastest500HTML = session.get(event.url + "results/fastest500/").text
+        fastest500HTML = cls.session.get(event.url + "results/fastest500/").text
 
         fastest500Soup = BeautifulSoup(fastest500HTML, "html.parser")
         fastest500Rows = fastest500Soup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -482,9 +583,12 @@ class Fastest():
 
         return fastest500
 
-class WeekFirstFinisher:
+class WeekFirstFinisher(BaseScraper):
 
-    def __init__(self, _event=None, _maleParkRunner=None, _maleClub=None, _femaleParkRunner=None, _femaleClub=None):
+    def __init__(self, _event=None, _maleParkRunner=None, _maleClub=None, _femaleParkRunner=None, _femaleClub=None, session=None):
+
+        self.init_session(session)
+
 
         self.event = _event
         self.maleParkRunner = _maleParkRunner
@@ -494,12 +598,14 @@ class WeekFirstFinisher:
 
         pass
 
-    @staticmethod
-    def GetWeekFirstFinishersForCountry(country):
+    @classmethod
+    def GetWeekFirstFinishersForCountry(cls, country):
+
+        cls.init_session()
 
         weekFirstFinishers = []
 
-        weekFirstFinisherHTML = session.get(country.url + "/results/firstfinishers/").text
+        weekFirstFinisherHTML = cls.session.get(country.url + "/results/firstfinishers/").text
 
         weekFirstFinisherSoup = BeautifulSoup(weekFirstFinisherHTML, "html.parser")
         weekFirstFinisherRows = weekFirstFinisherSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -520,12 +626,14 @@ class WeekFirstFinisher:
 
         return weekFirstFinishers
 
-    @staticmethod
-    def GetWeekFirstFinishersGlobally():
+    @classmethod
+    def GetWeekFirstFinishersGlobally(cls):
+
+        cls.init_session()
 
         weekFirstFinishers = []
 
-        weekFirstFinisherHTML = session.get("https://www.parkrun.com/results/firstfinishers/").text
+        weekFirstFinisherHTML = cls.session.get("https://www.parkrun.com/results/firstfinishers/").text
 
         weekFirstFinisherSoup = BeautifulSoup(weekFirstFinisherHTML, "html.parser")
         weekFirstFinisherRows = weekFirstFinisherSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -546,9 +654,12 @@ class WeekFirstFinisher:
 
         return weekFirstFinishers
 
-class WeekSub17Run:
+class WeekSub17Run(BaseScraper):
 
-    def __init__(self, _event=None, _parkRunner=None, _time=None, _club=None):
+    def __init__(self, _event=None, _parkRunner=None, _time=None, _club=None, session=None):
+
+        self.init_session(session)
+
 
         self.event = _event
         self.parkRunner = _parkRunner
@@ -557,12 +668,14 @@ class WeekSub17Run:
 
         pass
 
-    @staticmethod
-    def GetWeekSub17RunsForCountry(country):
+    @classmethod
+    def GetWeekSub17RunsForCountry(cls, country):
+
+        cls.init_session()
 
         weekSub17Runs = []
 
-        weekSub17RunHTML = session.get(country.url + "/results/sub17/").text
+        weekSub17RunHTML = cls.session.get(country.url + "/results/sub17/").text
 
         weekSub17RunSoup = BeautifulSoup(weekSub17RunHTML, "html.parser")
         weekSub17RunRows = weekSub17RunSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -582,12 +695,14 @@ class WeekSub17Run:
 
         return weekSub17Runs
 
-    @staticmethod
-    def GetWeekSub17RunsGlobally():
+    @classmethod
+    def GetWeekSub17RunsGlobally(cls):
+
+        cls.init_session()
 
         weekSub17Runs = []
 
-        weekSub17RunHTML = session.get("https://www.parkrun.com/results/sub17/").text
+        weekSub17RunHTML = cls.session.get("https://www.parkrun.com/results/sub17/").text
 
         weekSub17RunSoup = BeautifulSoup(weekSub17RunHTML, "html.parser")
         weekSub17RunRows = weekSub17RunSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -607,9 +722,11 @@ class WeekSub17Run:
 
         return weekSub17Runs
 
-class WeekTopAgeGrade:
+class WeekTopAgeGrade(BaseScraper):
 
-    def __init__(self, _event=None, _parkRunner=None, _time=None, _ageGroup=None, _ageGrade=None, _club=None):
+    def __init__(self, _event=None, _parkRunner=None, _time=None, _ageGroup=None, _ageGrade=None, _club=None, session=None):
+
+        self.init_session(session)
 
         self.event = _event
         self.parkRunner = _parkRunner
@@ -620,12 +737,14 @@ class WeekTopAgeGrade:
 
         pass
 
-    @staticmethod
-    def GetWeekTopAgeGradesForCountry(country):
+    @classmethod
+    def GetWeekTopAgeGradesForCountry(cls, country):
+
+        cls.init_session()
 
         weekTopAgeGrades = []
 
-        weekTopAgeGradeHTML = session.get(country.url + "/results/topagegrade/").text
+        weekTopAgeGradeHTML = cls.session.get(country.url + "/results/topagegrade/").text
 
         weekTopAgeGradeSoup = BeautifulSoup(weekTopAgeGradeHTML, "html.parser")
         weekTopAgeGradeRows = weekTopAgeGradeSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -647,12 +766,14 @@ class WeekTopAgeGrade:
 
         return weekTopAgeGrades
 
-    @staticmethod
-    def GetWeekTopAgeGradesGlobally():
+    @classmethod
+    def GetWeekTopAgeGradesGlobally(cls):
+
+        cls.init_session()
 
         weekTopAgeGrades = []
 
-        weekTopAgeGradeHTML = session.get("https://www.parkrun.com/results/topagegrade/").text
+        weekTopAgeGradeHTML = cls.session.get("https://www.parkrun.com/results/topagegrade/").text
 
         weekTopAgeGradeSoup = BeautifulSoup(weekTopAgeGradeHTML, "html.parser")
         weekTopAgeGradeRows = weekTopAgeGradeSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -674,9 +795,12 @@ class WeekTopAgeGrade:
 
         return weekTopAgeGrades
 
-class WeekNewCategoryRecord:
+class WeekNewCategoryRecord(BaseScraper):
 
-    def __init__(self, _event=None, _parkRunner=None, _time=None, _ageGroup=None, _ageGrade=None, _club=None):
+    def __init__(self, _event=None, _parkRunner=None, _time=None, _ageGroup=None, _ageGrade=None, _club=None, session=None):
+
+        self.init_session(session)
+
 
         self.event = _event
         self.parkRunner = _parkRunner
@@ -687,12 +811,14 @@ class WeekNewCategoryRecord:
 
         pass
 
-    @staticmethod
-    def GetWeekNewCategoryRecordsForCountry(country):
+    @classmethod
+    def GetWeekNewCategoryRecordsForCountry(cls, country):
+
+        cls.init_session()
 
         weekNewCategoryRecords = []
 
-        weekNewCategoryRecordHTML = session.get(country.url + "/results/newcategoryrecords/").text
+        weekNewCategoryRecordHTML = cls.session.get(country.url + "/results/newcategoryrecords/").text
 
         weekNewCategoryRecordSoup = BeautifulSoup(weekNewCategoryRecordHTML, "html.parser")
         weekNewCategoryRecordRows = weekNewCategoryRecordSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -714,12 +840,14 @@ class WeekNewCategoryRecord:
 
         return weekNewCategoryRecords
         
-    @staticmethod
-    def GetWeekNewCategoryRecordsGlobally():
+    @classmethod
+    def GetWeekNewCategoryRecordsGlobally(cls):
+
+        cls.init_session()
 
         weekNewCategoryRecords = []
 
-        weekNewCategoryRecordHTML = session.get("https://www.parkrun.com/results/newcategoryrecords/").text
+        weekNewCategoryRecordHTML = cls.session.get("https://www.parkrun.com/results/newcategoryrecords/").text
 
         weekNewCategoryRecordSoup = BeautifulSoup(weekNewCategoryRecordHTML, "html.parser")
         weekNewCategoryRecordRows = weekNewCategoryRecordSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -741,9 +869,12 @@ class WeekNewCategoryRecord:
 
         return weekNewCategoryRecords
 
-class CourseRecord:
+class CourseRecord(BaseScraper):
 
-    def __init__(self, _event=None, _femaleParkRunner=None, _femaleTime=None, _femaleDate=None, _maleParkRunner=None, _maleTime=None, _maleDate=None):
+    def __init__(self, _event=None, _femaleParkRunner=None, _femaleTime=None, _femaleDate=None, _maleParkRunner=None, _maleTime=None, _maleDate=None, session=None):
+
+        self.init_session(session)
+
 
         self.event = _event
         self.femaleParkRunner = _femaleParkRunner
@@ -755,12 +886,14 @@ class CourseRecord:
 
         pass
 
-    @staticmethod
-    def GetCourseRecordsForCountry(country):
+    @classmethod
+    def GetCourseRecordsForCountry(cls, country):
+
+        cls.init_session()
 
         courseRecords = []
 
-        courseRecordHTML = session.get(country.url + "/results/courserecords/").text
+        courseRecordHTML = cls.session.get(country.url + "/results/courserecords/").text
 
         courseRecordSoup = BeautifulSoup(courseRecordHTML, "html.parser")
         courseRecordRows = courseRecordSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -783,12 +916,14 @@ class CourseRecord:
 
         return courseRecords
 
-    @staticmethod
-    def GetCourseRecordsGlobally():
+    @classmethod
+    def GetCourseRecordsGlobally(cls):
+
+        cls.init_session()
 
         courseRecords = []
 
-        courseRecordHTML = session.get("https://www.parkrun.com/results/courserecords/").text
+        courseRecordHTML = cls.session.get("https://www.parkrun.com/results/courserecords/").text
 
         courseRecordSoup = BeautifulSoup(courseRecordHTML, "html.parser")
         courseRecordRows = courseRecordSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -811,9 +946,12 @@ class CourseRecord:
 
         return courseRecords
 
-class AttendanceRecord:
+class AttendanceRecord(BaseScraper):
 
-    def __init__(self, _event=None, _attendance=None, _week=None, _thisWeek=None):
+    def __init__(self, _event=None, _attendance=None, _week=None, _thisWeek=None, session=None):
+
+        self.init_session(session)
+
 
         self.event = _event
         self.attendance = _attendance
@@ -822,12 +960,14 @@ class AttendanceRecord:
 
         pass
 
-    @staticmethod
-    def GetAttendanceRecordsForCountry(country):
+    @classmethod
+    def GetAttendanceRecordsForCountry(cls, country):
+
+        cls.init_session()
 
         attendanceRecords = []
 
-        attendanceRecordHTML = session.get(country.url + "/results/attendancerecords/").text
+        attendanceRecordHTML = cls.session.get(country.url + "/results/attendancerecords/").text
 
         attendanceRecordSoup = BeautifulSoup(attendanceRecordHTML, "html.parser")
         attendanceRecordRows = attendanceRecordSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -847,12 +987,14 @@ class AttendanceRecord:
 
         return attendanceRecords
 
-    @staticmethod
-    def GetAttendanceRecordsGlobally():
+    @classmethod
+    def GetAttendanceRecordsGlobally(cls):
+
+        cls.init_session()
 
         attendanceRecords = []
 
-        attendanceRecordHTML = session.get("https://www.parkrun.com/results/attendancerecords/").text
+        attendanceRecordHTML = cls.session.get("https://www.parkrun.com/results/attendancerecords/").text
 
         attendanceRecordSoup = BeautifulSoup(attendanceRecordHTML, "html.parser")
         attendanceRecordRows = attendanceRecordSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -872,9 +1014,12 @@ class AttendanceRecord:
 
         return attendanceRecords
 
-class MostEvent:
+class MostEvent(BaseScraper):
 
-    def __init__(self, _parkRunner=None, _events=None, _totalParkRuns=None, _totalParkRunsWorldwide=None):
+    def __init__(self, _parkRunner=None, _events=None, _totalParkRuns=None, _totalParkRunsWorldwide=None, session=None):
+
+        self.init_session(session)
+
 
         self.parkRunner = _parkRunner
         self.events = _events
@@ -883,12 +1028,14 @@ class MostEvent:
 
         pass
 
-    @staticmethod
-    def GetMostEventsForCountry(country):
+    @classmethod
+    def GetMostEventsForCountry(cls, country):
+
+        cls.init_session()
 
         mostEvents = []
 
-        mostEventHTML = session.get(country.url + "/results/mostevents/").text
+        mostEventHTML = cls.session.get(country.url + "/results/mostevents/").text
 
         mostEventSoup = BeautifulSoup(mostEventHTML, "html.parser")
         mostEventRows = mostEventSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -908,12 +1055,14 @@ class MostEvent:
 
         return mostEvents
 
-    @staticmethod
-    def GetMostEventsGlobally():
+    @classmethod
+    def GetMostEventsGlobally(cls):
+
+        cls.init_session()
 
         mostEvents = []
 
-        mostEventHTML = session.get("https://www.parkrun.com/results/mostevents/").text
+        mostEventHTML = cls.session.get("https://www.parkrun.com/results/mostevents/").text
 
         mostEventSoup = BeautifulSoup(mostEventHTML, "html.parser")
         mostEventRows = mostEventSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -932,9 +1081,11 @@ class MostEvent:
 
         return mostEvents
 
-class LargestClub:
+class LargestClub(BaseScraper):
 
-    def __init__(self, _club=None, _numberOfParkRunners=None, _numberOfRuns=None, _clubHomePage=None):
+    def __init__(self, _club=None, _numberOfParkRunners=None, _numberOfRuns=None, _clubHomePage=None, session=None):
+
+        self.init_session(session)
 
         self.club = _club
         self.numberOfParkRunners = _numberOfParkRunners
@@ -943,12 +1094,14 @@ class LargestClub:
 
         pass
 
-    @staticmethod
-    def GetLargestClubsForCountry(country):
+    @classmethod
+    def GetLargestClubsForCountry(cls, country):
+
+        cls.init_session()
 
         largestClubs = []
 
-        largestClubHTML = session.get(country.url + "/results/largestclubs/").text
+        largestClubHTML = cls.session.get(country.url + "/results/largestclubs/").text
 
         largestClubSoup = BeautifulSoup(largestClubHTML, "html.parser")
         largestClubRows = largestClubSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -968,21 +1121,25 @@ class LargestClub:
 
         return largestClubs
 
-class Joined100Club:
+class Joined100Club(BaseScraper):
 
-    def __init__(self, _parkRunner=None, _numberOfRuns=None):
+    def __init__(self, _parkRunner=None, _numberOfRuns=None, session=None):
+
+        self.init_session(session)
 
         self.parkRunner = _parkRunner
         self.numberOfRuns = _numberOfRuns
 
         pass
 
-    @staticmethod
-    def GetJoined100ClubsForCountry(country):
+    @classmethod
+    def GetJoined100ClubsForCountry(cls, country):
+
+        cls.init_session()
 
         joined100Clubs = []
 
-        joined100ClubHTML = session.get(country.url + "/results/100clubbers/").text
+        joined100ClubHTML = cls.session.get(country.url + "/results/100clubbers/").text
 
         joined100ClubSoup = BeautifulSoup(joined100ClubHTML, "html.parser")
         joined100ClubRows = joined100ClubSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -1000,21 +1157,26 @@ class Joined100Club:
 
         return joined100Clubs
 
-class MostFirstFinish:
+class MostFirstFinish(BaseScraper):
 
-    def __init__(self, _parkRunner=None, _numberOfRuns=None):
+    def __init__(self, _parkRunner=None, _numberOfRuns=None, session=None):
+
+        self.init_session(session)
+
 
         self.parkRunner = _parkRunner
         self.numberOfRuns = _numberOfRuns
 
         pass
 
-    @staticmethod
-    def GetMostFirstFinishesForCountry(country):
+    @classmethod
+    def GetMostFirstFinishesForCountry(cls, country):
+
+        cls.init_session()
 
         mostFirstFinishes = []
 
-        mostFirstFinishHTML = session.get(country.url + "/results/mostfirstfinishes/").text
+        mostFirstFinishHTML = cls.session.get(country.url + "/results/mostfirstfinishes/").text
 
         mostFirstFinishSoup = BeautifulSoup(mostFirstFinishHTML, "html.parser")
         mostFirstFinishRows = mostFirstFinishSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -1032,12 +1194,14 @@ class MostFirstFinish:
 
         return mostFirstFinishes
 
-    @staticmethod
-    def GetMostFirstFinishesGlobally():
+    @classmethod
+    def GetMostFirstFinishesGlobally(cls):
+
+        cls.init_session()
 
         mostFirstFinishes = []
 
-        mostFirstFinishHTML = session.get("https://www.parkrun.com/results/mostfirstfinishes/").text
+        mostFirstFinishHTML = cls.session.get("https://www.parkrun.com/results/mostfirstfinishes/").text
 
         mostFirstFinishSoup = BeautifulSoup(mostFirstFinishHTML, "html.parser")
         mostFirstFinishRows = mostFirstFinishSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -1055,9 +1219,12 @@ class MostFirstFinish:
 
         return mostFirstFinishes
 
-class FreedomRun:
+class FreedomRun(BaseScraper):
 
-    def __init__(self, _parkRunner=None, _date=None, _location=None, _runTime=None):
+    def __init__(self, _parkRunner=None, _date=None, _location=None, _runTime=None, session=None):
+
+        self.init_session(session)
+
 
         self.parkRunner = _parkRunner
         self.date = _date
@@ -1066,12 +1233,14 @@ class FreedomRun:
 
         pass
 
-    @staticmethod
-    def GetFreedomRunsForCountry(country):
+    @classmethod
+    def GetFreedomRunsForCountry(cls, country):
+
+        cls.init_session()
 
         freedomRuns = []
 
-        freedomRunHTML = session.get(country.url + "/results/freedom/").text
+        freedomRunHTML = cls.session.get(country.url + "/results/freedom/").text
 
         freedomRunSoup = BeautifulSoup(freedomRunHTML, "html.parser")
         freedomRunRows = freedomRunSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -1091,12 +1260,14 @@ class FreedomRun:
 
         return freedomRuns
 
-    @staticmethod
-    def GetFreedomRunsGlobally():
+    @classmethod
+    def GetFreedomRunsGlobally(cls):
+
+        cls.init_session()
 
         freedomRuns = []
 
-        freedomRunHTML = session.get("https://www.parkrun.com/results/freedom/").text
+        freedomRunHTML = cls.session.get("https://www.parkrun.com/results/freedom/").text
 
         freedomRunSoup = BeautifulSoup(freedomRunHTML, "html.parser")
         freedomRunRows = freedomRunSoup.find("table", {"id": "results"}).find("tbody").findAll("tr")
@@ -1116,9 +1287,13 @@ class FreedomRun:
 
         return freedomRuns
 
-class HistoricNumber:
+class HistoricNumber(BaseScraper):
 
-    def __init__(self, _date=None, _events=None, _athletes=None, _volunteers=None):
+    session = None
+
+    def __init__(self, _date=None, _events=None, _athletes=None, _volunteers=None, session=None):
+
+        self.init_session(session)
 
         self.date = _date
         self.events = _events
@@ -1127,19 +1302,21 @@ class HistoricNumber:
 
         pass
 
-    @staticmethod
-    def GetHistoricNumbersForCountry(country=None):
+    @classmethod
+    def GetHistoricNumbersForCountry(cls, country=None):
+
+        cls.init_session()
 
         historicNumbers = []
         historicNumberHTML = None
 
         if country:
 
-            historicNumberHTML = session.get("https://results-service.parkrun.com/resultsSystem/App/globalChartNumRunnersAndEvents.php?CountryNum=" + country.id).text
+            historicNumberHTML = cls.session.get("https://results-service.parkrun.com/resultsSystem/App/globalChartNumRunnersAndEvents.php?CountryNum=" + country.id).text
 
         else:
 
-            historicNumberHTML = session.get("https://results-service.parkrun.com/resultsSystem/App/globalChartNumRunnersAndEvents.php").text
+            historicNumberHTML = cls.session.get("https://results-service.parkrun.com/resultsSystem/App/globalChartNumRunnersAndEvents.php").text
 
         searchString = "data.addRows(["
         contentStartIndex = historicNumberHTML.find(searchString) + len(searchString)

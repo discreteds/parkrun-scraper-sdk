@@ -1,0 +1,124 @@
+
+[metadata]
+allow-direct-references = true
+
+
+[version]
+path = "src/parkrun_api/__version__.py"
+
+[build.targets.wheel]
+packages = ["src/parkrun_api"]
+
+#================
+# Env: default
+#================
+[envs.default]
+installer = "uv"
+dependencies = []
+
+#================
+# Env: test_github
+#================
+[[envs.test_github.matrix]]
+python = ["3.12"] #,"3.11", "3.10", # "3.8", "3.9","3.9",
+
+[envs.test_github]
+installer = "uv"
+dependencies = [
+  "coverage[toml]>=6.5",
+  "pytest==8.1.1",
+  "pytest-check==2.3.1",
+
+]
+[envs.test_github.scripts]
+test = "pytest"
+test-cov = "coverage run -m pytest"
+test-xml = "coverage xml"
+cov-report = [
+  "- coverage combine",
+  "coverage report",
+]
+cov = [
+  "test-cov",
+  "cov-report",
+  "test-xml",
+]
+cov-html = [
+  "coverage html",
+]
+
+#================
+# Env: test
+#================
+[[envs.test.matrix]]
+python = [ "3.12"] #,  "3.11",, "3.10" ] # "3.8", "3.9","3.9",
+
+[envs.test]
+installer = "uv"
+dependencies = [
+  "coverage[toml]>=6.5",
+  "pytest==8.1.1",
+  "pytest-check==2.3.1",
+
+]
+[envs.test.scripts]
+test = "pytest"
+test-cov = "coverage run -m pytest"
+test-xml = "coverage xml"
+cov-report = [
+  "- coverage combine",
+  "coverage report",
+]
+cov = [
+  "test-cov",
+  "cov-report",
+  "test-xml",
+]
+cov-html = [
+  "coverage html",
+]
+
+
+#================
+# Env: ruff
+#================
+[envs.ruff]
+installer = "uv"
+dependencies = [
+  "ruff==0.3.7"
+]
+[envs.ruff.scripts]
+check = "ruff check ./src"
+fix = "ruff check ./src --fix"
+
+#================
+# Env: radon
+#================
+# Radon Complexity Checks
+[envs.radon]
+installer = "uv"
+dependencies = [
+  "radon==6.0.1",
+]
+[envs.radon.scripts]
+radon-cc = "radon cc ./src -nd"
+radon-mi = "radon mi ./src -nd"
+radon-cc-strict = "radon cc ./src -nc"
+radon-mi-strict = "radon mi ./src -nc"
+radon-mi-detail = "radon mi ./src"
+radon-cc-detail = "radon cc ./src"
+
+#================
+# Env: mypy
+#================
+# Mypy Type checks
+[envs.mypy]
+installer = "uv"
+dependencies = [
+  "mypy==1.10.1",
+]
+[envs.mypy.scripts]
+check = "mypy --install-types --non-interactive {args:src/parkrun_api tests}"
+
+
+
