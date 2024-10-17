@@ -1,3 +1,6 @@
+# file: src/parkrun_scraper_sdk/orchestration/extraction_orchestrator.py
+
+
 from json import load
 from typing import Optional, Dict, Any, List
 from unittest import result
@@ -50,12 +53,12 @@ class ParkrunDataExtractionOrchestrator: #(BaseHamiltonOrchestratorMixin):
     def load_live_countries_lookup(self) -> List[Country]:
         # Implementation for extracting countries
         if self.live_countries_lookup is None:
-            self.live_countries_lookup = {country.id: country for country in Country.get_all_countries()}
+            self.live_countries_lookup = {country.country_id: country for country in Country.get_all_countries()}
         
     def load_live_courses_lookup(self) -> List[Course]:
         # Implementation for extracting courses
         if self.live_courses_lookup is None:
-            self.live_courses_lookup = {course.id: course for course in Course.get_all_courses()}
+            self.live_courses_lookup = {course.course_id: course for course in Course.get_all_courses()}
 
 
     def load_country_course_ids(self) -> None:
@@ -66,8 +69,8 @@ class ParkrunDataExtractionOrchestrator: #(BaseHamiltonOrchestratorMixin):
 
         if self.country_course_ids is None:
 
-            self.country_course_ids = {str(country.id): []  for country in countries}
-            [self.country_course_ids[str(course.country_code)].append(course.id)  for course in courses]
+            self.country_course_ids = {str(country.country_id): []  for country in countries}
+            [self.country_course_ids[str(course.country_id)].append(str(course.course_id))  for course in courses]
 
 
     def load_country_num_courses(self) -> None:
@@ -83,44 +86,48 @@ class ParkrunDataExtractionOrchestrator: #(BaseHamiltonOrchestratorMixin):
 
 
     #Events
-    def extract_raw_course_events(self, course_id: str) -> List[Event]:
+    def extract_raw_course_event_history(self, course: Course) -> List[Event]:
         # Implementation for extracting events for a specific course
-        course = self.live_courses_lookup[course_id]
-        return Event.get_event_history(course)
+        # course = self.live_courses_lookup[course_id]
+        return course.get_event_history()
 
 
     def get_course_event_date_lookup(self, events: Dict[str, Event]) -> Dict[str, Event]:
-        return {event.date: event for event in events}
+        return {event.event_date: event for event in events}
 
 
     def get_course_event_id_lookup(self, events: Dict[str, Event]) -> Dict[str, Event]:
-        return {event.event_number: event for event in events}
+        return {str(event.event_id): event for event in events}
 
 
 
-    def get_course_first_event_date(self, course_id) -> Event:
-        events = self.extract_raw_course_events(course_id)
+    def get_course_first_event_date(self, course: Course) -> Event:
+
+        events = self.extract_raw_course_event_history(course)
         event_dates = self.get_course_event_date_lookup(events)
         return min(event_dates.keys())
 
 
 
     #Results
-    def extract_raw_event_results(self, course_id: str, event_id: str) -> Dict[str, Result]:
+    def extract_raw_event_results(self, course: Course, event: Event) -> Dict[str, Result]:
         # Implementation for extracting results for a specific event
 
-        course = self.live_courses_lookup[course_id]
-        results = Result.get_results(course, event_id)
+        # course = self.live_courses_lookup[course_id]
+        # event = self.get_course_event_id_lookup(self.extract_raw_course_events(course_id))[event_id]
+
+        results = Result.get_results(course, event)
         return results
 
 
     # Incremental extraction
-    def extract_course_new_event_history(self, course_id, processed_event_numbers: List[str] = None) -> List[Dict[str, Event]]:
+    def extract_course_new_event_history(self, course: Course, processed_event_ids: List[str] = None) -> List[Dict[str, Event]]:
 
-        if processed_event_numbers is None:
-            processed_event_numbers = []
+        if processed_event_ids is None:
+            processed_event_ids = []
 
-        events = self.extract_raw_course_events(course_id)
+        events = self.extract_raw_course_event_history(course)
+
         event_id_lookup = self.get_course_event_id_lookup(events)
         processing_date = datetime.strptime(self.processing_date, "%Y-%m-%d")
 
@@ -128,21 +135,21 @@ class ParkrunDataExtractionOrchestrator: #(BaseHamiltonOrchestratorMixin):
 
         for event_id in event_id_lookup:
             event = event_id_lookup[event_id]
-            if event_id in processed_event_numbers:
+            if event_id in processed_event_ids:
                 continue
-            if event.date > processing_date:
+            if event.event_date > processing_date:
                 continue
 
             unprocessed_events[event_id] = event_id_lookup[event_id]
 
         return unprocessed_events
 
-    def extract_course_new_result_history(self, course_id, processed_event_numbers: List[str] = None) -> List[Dict[str, Result]]:
+    def extract_course_new_result_history(self, course: Course, processed_event_ids: List[str] = None) -> List[Dict[str, Result]]:
 
-        if processed_event_numbers is None:
-            processed_event_numbers = []
+        if processed_event_ids is None:
+            processed_event_ids = []
 
-        events = self.extract_raw_course_events(course_id)
+        events = self.extract_raw_course_event_history(course)
         event_id_lookup = self.get_course_event_id_lookup(events)
 
         processing_date = datetime.strptime(self.processing_date, "%Y-%m-%d")
@@ -151,14 +158,12 @@ class ParkrunDataExtractionOrchestrator: #(BaseHamiltonOrchestratorMixin):
 
         for event_id in event_id_lookup:
             event = event_id_lookup[event_id]
-
-            if event_id in processed_event_numbers:
+            if event_id in processed_event_ids:
+                continue
+            if event.event_date > processing_date:
                 continue
 
-            if event.date > processing_date:
-                continue
-
-            unprocessed_results[event_id] = self.extract_raw_event_results(course_id, event_id)
+            unprocessed_results[event_id] = self.extract_raw_event_results(course, event)
 
         return unprocessed_results
 

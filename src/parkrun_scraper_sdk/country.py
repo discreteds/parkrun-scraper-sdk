@@ -8,8 +8,8 @@ from .base_scraper import BaseScraper
 
 @dataclass
 class Country(BaseDataclass, BaseScraper):
-    id: Optional[str] = None
-    url: Optional[str] = None
+    country_id: Optional[str] = None
+    country_url:        Optional[str] = None
 
     @classmethod
     def get_all_countries(cls) -> List['Country']:
@@ -22,11 +22,11 @@ class Country(BaseDataclass, BaseScraper):
     @classmethod
     def _create_country_from_json(cls, country_id: str, country_data: dict) -> 'Country':
         return cls(
-            id=country_id,
-            url=f"https://{country_data['url']}"
+            country_id= country_id,
+            country_url=        f"https://{country_data['url']}"
         )
 
     def __post_init__(self):
-        if self.url and not self.url.startswith('http'):
-            self.url = f"https://{self.url}"
+        if self.country_url and not self.country_url.startswith('http'):
+            self.country_url = f"https://{self.country_url}"
 

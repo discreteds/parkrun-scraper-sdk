@@ -1,17 +1,20 @@
 # file: src/parkrun_scraper_sdk/result.py
 
 from dataclasses import dataclass
-from random import random
 from typing import List, Optional
+from datetime import datetime
 from .base_dataclass import BaseDataclass
 from .base_scraper import BaseScraper
 from .course import Course
+from .event import Event
 
 @dataclass
 class Result(BaseDataclass, BaseScraper):
 
+    event_id: Optional[str] = None
     course_id: Optional[str] = None
-    event_number: Optional[str] = None
+    country_id: Optional[str] = None
+    event_date: Optional[datetime] = None
 
     name: Optional[str] = None
     age_group: Optional[str] = None
@@ -33,12 +36,12 @@ class Result(BaseDataclass, BaseScraper):
 
 
     @classmethod
-    def _create_result_from_row(cls, row, course_id, event_number) -> 'Result':
+    def _create_result_from_row(cls, row, course_id: str, event_id: str, event_date: str, country_id: str) -> 'Result':
 
 
         name_cell = row.select_one('.Results-table-td--name')
         time_cell = row.select_one('.Results-table-td--time')
-        gender_cell = row.select_one('.Results-table-td--gender')
+        # gender_cell = row.select_one('.Results-table-td--gender')
 
         athlete_link = name_cell.select_one('a')
         athlete_id = cls._extract_athlete_id(athlete_link['href']) if athlete_link else None
@@ -58,22 +61,25 @@ class Result(BaseDataclass, BaseScraper):
 
         return cls(
 
-            course_id= course_id,
-            event_number=event_number,
-            name=row.get('data-name'),
-            age_group=row.get('data-agegroup'),
-            club=row.get('data-club'),
-            gender=row.get('data-gender'),
+            course_id=      course_id,
+            event_id=       event_id,
+            event_date=     event_date,
+            country_id=     country_id,
+
+            name=           row.get('data-name'),
+            age_group=      row.get('data-agegroup'),
+            club=           row.get('data-club'),
+            gender=         row.get('data-gender'),
             gender_position=gender_position,
-            position=int(row.get('data-position')) if row.get('data-position') else None,
-            runs=int(row.get('data-runs')) if row.get('data-runs') else None,
-            age_grade=float(row.get('data-agegrade')) if row.get('data-agegrade') else None,
-            achievement=row.get('data-achievement') if row.get('data-achievement') else None,
-            volunteer_count=int(row.get('data-vols'))  if row.get('data-vols') else None,
-            time=time,
-            personal_best=personal_best,
-            athlete_id=athlete_id,
-            is_pb=is_pb,
+            position=       int(row.get('data-position'))   if row.get('data-position') else None,
+            runs=           int(row.get('data-runs'))       if row.get('data-runs') else None,
+            age_grade=      float(row.get('data-agegrade')) if row.get('data-agegrade') else None,
+            achievement=    row.get('data-achievement')     if row.get('data-achievement') else None,
+            volunteer_count=int(row.get('data-vols'))       if row.get('data-vols') else None,
+            time=           time,
+            personal_best=  personal_best,
+            athlete_id=     athlete_id,
+            is_pb=          is_pb,
             club_membership=club_membership            
         )
 
@@ -83,15 +89,18 @@ class Result(BaseDataclass, BaseScraper):
         return cls.get_results(course, "latestresults")
 
     @classmethod
-    def get_results(cls, course: Course, event_number: str) -> List['Result']:
+    def get_results(cls, course: Course, event: Event) -> List['Result']:
 
-        course_id = course.id
+        course_id =     course.course_id
+        country_id =    course.country_id
+        event_id =      event.event_id
+        event_date =    event.event_date
 
-        url = f"{course.url}results/{event_number}/"
-        html = cls._fetch_data(url)
-        soup = cls._parse_html(html)
-        result_rows = soup.select("tr.Results-table-row")
-        return [cls._create_result_from_row(row, course_id, event_number) for row in result_rows]
+        url =           f"{course.course_url}results/{event_id}/"
+        html =          cls._fetch_data(url)
+        soup =          cls._parse_html(html)
+        result_rows =   soup.select("tr.Results-table-row")
+        return [cls._create_result_from_row(row, course_id, event_id, event_date, country_id) for row in result_rows]
 
 
     #Helper methods

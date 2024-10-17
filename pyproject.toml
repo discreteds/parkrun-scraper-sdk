@@ -20,7 +20,7 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12", 
   "Programming Language :: Python :: Implementation :: CPython",
-  "Programming Language :: Python :: Implementation :: PyPy",
+  "Programming Language :: Python :: Implementation :: PyPy", 
 ]
 dependencies = [
   "pip",
@@ -31,17 +31,19 @@ dependencies = [
   "beautifulsoup4",   
   "flask",
   "flask-limiter", 
+  "pyarrow",
+  "universal_pathlib==0.2.2",  
 ]  
   
   
 [project.urls]
 Documentation = "https://github.com/mountainash-io/mountainash-utils-dataclasses#readme"
 Issues = "https://github.com/mountainash-io/mountainash-utils-dataclasses/issues"
-Source = "https://github.com/mountainash-io/mountainash-utils-dataclasses" 
+Source = "https://github.com/mountainash-io/mountainash-utils-dataclasses"  
 
 #================
 # Tool: Coverage
-#================
+#================ 
 [tool.coverage.run]
 source_pkgs = ["parkrun_scraper_sdk", "tests"]
 branch = true
