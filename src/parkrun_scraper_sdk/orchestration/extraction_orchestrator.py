@@ -2,6 +2,8 @@ from json import load
 from typing import Optional, Dict, Any, List
 from unittest import result
 from datetime import datetime
+from parkrun_scraper_sdk import Country, Course, Result, Event
+
 
 
 from parkrun_scraper_sdk import event
