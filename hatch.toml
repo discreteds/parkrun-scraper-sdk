@@ -4,10 +4,10 @@ allow-direct-references = true
 
 
 [version]
-path = "src/parkrun_api/__version__.py"
+path = "src/parkrun_scraper_sdk/__version__.py"
 
 [build.targets.wheel]
-packages = ["src/parkrun_api"]
+packages = ["src/parkrun_scraper_sdk"]
 
 #================
 # Env: default
@@ -118,7 +118,7 @@ dependencies = [
   "mypy==1.10.1",
 ]
 [envs.mypy.scripts]
-check = "mypy --install-types --non-interactive {args:src/parkrun_api tests}"
+check = "mypy --install-types --non-interactive {args:src/parkrun_scraper_sdk tests}"
 
 
 
