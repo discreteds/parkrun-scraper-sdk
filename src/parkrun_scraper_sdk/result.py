@@ -11,27 +11,27 @@ from .event import Event
 @dataclass
 class Result(BaseDataclass, BaseScraper):
 
-    event_id: Optional[str] = None
-    course_id: Optional[str] = None
-    country_id: Optional[str] = None
-    event_date: Optional[datetime] = None
+    event_id:   Optional[str] = " "
+    course_id:  Optional[str] = " "
+    country_id: Optional[str] = " "
+    event_date: Optional[str] = " "
 
-    name: Optional[str] = None
-    age_group: Optional[str] = None
-    club: Optional[str] = None
-    gender: Optional[str] = None
-    gender_position: Optional[int] = None
-    position: Optional[int] = None
-    runs: Optional[int] = None
-    age_grade: Optional[float] = None
-    achievement: Optional[str] = None
+    name:       Optional[str] = " "
+    age_group:  Optional[str] = " "
+    club:       Optional[str] = " "
+    gender:     Optional[str] = " "
+    gender_position: Optional[str] = " "
+    position:   Optional[str] = " "
+    runs:       Optional[str] = " "
+    age_grade:  Optional[str] = " "
+    achievement: Optional[str] = " "
 
-    volunteer_count: int = 0
-    time: str = ''
-    personal_best: Optional[str] = None
-    athlete_id: Optional[int] = None
-    is_pb: bool = False
-    club_membership: Optional[str] = None    
+    volunteer_count:    str = '0'
+    time:               str = ' '
+    personal_best:      Optional[str] = " "
+    athlete_id:         Optional[str] = " "
+    is_pb:              str = "0"
+    club_membership:    Optional[str] = " "    
 
 
 
@@ -44,43 +44,43 @@ class Result(BaseDataclass, BaseScraper):
         # gender_cell = row.select_one('.Results-table-td--gender')
 
         athlete_link = name_cell.select_one('a')
-        athlete_id = cls._extract_athlete_id(athlete_link['href']) if athlete_link else None
+        athlete_id = cls._extract_athlete_id(athlete_link['href']) if athlete_link else " "
 
         club_icon = name_cell.select_one('.Results-table--clubIcon')
-        club_membership = club_icon['title'] if club_icon else None
+        club_membership = club_icon['title'] if club_icon else " "
 
         detailed_div = name_cell.select_one('.detailed')
-        gender_position = cls._extract_gender_position(detailed_div.text) if detailed_div else None
+        gender_position = cls._extract_gender_position(detailed_div.text) if detailed_div else " "
 
         time_compact = time_cell.select_one('.compact')
         time = time_compact.text.strip() if time_compact else ''
 
         time_detailed = time_cell.select_one('.detailed')
-        personal_best = cls._extract_personal_best(time_detailed.text) if time_detailed else None
+        personal_best = cls._extract_personal_best(time_detailed.text) if time_detailed else " "
         is_pb = 'PB' in time_detailed.text if time_detailed else False
 
         return cls(
 
-            course_id=      course_id,
-            event_id=       event_id,
-            event_date=     event_date,
-            country_id=     country_id,
+            course_id=      str(course_id),
+            event_id=       str(event_id),
+            event_date=     str(event_date),
+            country_id=     str(country_id),
 
-            name=           row.get('data-name'),
-            age_group=      row.get('data-agegroup'),
-            club=           row.get('data-club'),
-            gender=         row.get('data-gender'),
-            gender_position=gender_position,
-            position=       int(row.get('data-position'))   if row.get('data-position') else None,
-            runs=           int(row.get('data-runs'))       if row.get('data-runs') else None,
-            age_grade=      float(row.get('data-agegrade')) if row.get('data-agegrade') else None,
-            achievement=    row.get('data-achievement')     if row.get('data-achievement') else None,
-            volunteer_count=int(row.get('data-vols'))       if row.get('data-vols') else None,
-            time=           time,
-            personal_best=  personal_best,
-            athlete_id=     athlete_id,
-            is_pb=          is_pb,
-            club_membership=club_membership            
+            name=           str(row.get('data-name')),
+            age_group=      str(row.get('data-agegroup')),
+            club=           str(row.get('data-club')),
+            gender=         str(row.get('data-gender')),
+            gender_position=str(gender_position),
+            position=       str(row.get('data-position'))   if row.get('data-position') else " ",
+            runs=           str(row.get('data-runs'))       if row.get('data-runs') else " ",
+            age_grade=      str(row.get('data-agegrade'))   if row.get('data-agegrade') else " ",
+            achievement=    str(row.get('data-achievement')) if row.get('data-achievement') else " ",
+            volunteer_count=str(row.get('data-vols'))       if row.get('data-vols') else " ",
+            time=           str(time),
+            personal_best=  str(personal_best),
+            athlete_id=     str(athlete_id),
+            is_pb=          str(is_pb),
+            club_membership=str(club_membership)            
         )
 
     #Getters
@@ -126,19 +126,20 @@ class Result(BaseDataclass, BaseScraper):
     def get_latest_results(cls, event):
         return cls.get_results(event, "latestresults")
 
-    def __post_init__(self):
-        # Ensure numeric fields are of the correct type
-        if isinstance(self.position, str):
-            self.position = int(self.position) if self.position.isdigit() else None
-        if isinstance(self.runs, str):
-            self.runs = int(self.runs) if self.runs.isdigit() else None
-        
-        # self.volunteer_count = int(self.volunteer_count) if self.volunteer_count.isdigit() else None
+    # def __post_init__(self):
+    #     # Ensure numeric fields are of the correct type\
 
-        if isinstance(self.age_grade, str):
-            try:
-                self.age_grade = float(self.age_grade)
-            except ValueError:
-                self.age_grade = None
-        if self.gender_position:
-            self.gender_position = int(self.gender_position)                
+    #     if isinstance(self.position, str):
+    #         self.position = int(self.position) if self.position.isdigit() else None
+    #     if isinstance(self.runs, str):
+    #         self.runs = int(self.runs) if self.runs.isdigit() else None
+        
+    #     # self.volunteer_count = int(self.volunteer_count) if self.volunteer_count.isdigit() else None
+
+    #     if isinstance(self.age_grade, str):
+    #         try:
+    #             self.age_grade = float(self.age_grade)
+    #         except ValueError:
+    #             self.age_grade = None
+    #     if self.gender_position:
+    #         self.gender_position = int(self.gender_position)                

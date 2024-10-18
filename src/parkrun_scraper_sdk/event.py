@@ -27,25 +27,25 @@ class Event(BaseDataclass, BaseScraper):
 
 
     @classmethod
-    def _create_history_from_row(cls, row, course_id, country_id) -> 'Event':
+    def _create_history_from_row(cls, row, course_id:str, country_id:str) -> 'Event':
 
         male_link = row.select_one('td:nth-of-type(5) a')
         female_link = row.select_one('td:nth-of-type(7) a')
 
         return cls(
-            course_id =             course_id,
-            country_id =            country_id,
+            course_id =             str(course_id),
+            country_id =            str(country_id),
 
             event_id=               str(row.get('data-parkrun')) if row.get('data-parkrun') else None,
-            event_date=             cls._parse_date(row.get('data-date')),
-            finishers=              int(row.get('data-finishers')) if row.get('data-finishers') else None,
-            volunteers=             int(row.get('data-volunteers')) if row.get('data-volunteers') else None,
+            event_date=             str(cls._parse_date(row.get('data-date'))),
+            finishers=              str(row.get('data-finishers')) if row.get('data-finishers') else None,
+            volunteers=             str(row.get('data-volunteers')) if row.get('data-volunteers') else None,
             male_first=             str(row.get('data-male')) if row.get('data-male') else None,
             female_first=           str(row.get('data-female')) if row.get('data-female') else None,
-            male_time=              row.get('data-maletime'),
-            female_time=            row.get('data-femaletime'),
-            male_athlete_number=    cls._extract_athlete_number(male_link['href']) if male_link else None,
-            female_athlete_number=  cls._extract_athlete_number(female_link['href']) if female_link else None            
+            male_time=              str(row.get('data-maletime')),
+            female_time=            str(row.get('data-femaletime')),
+            male_athlete_number=    str(cls._extract_athlete_number(male_link['href'])) if male_link else None,
+            female_athlete_number=  str(cls._extract_athlete_number(female_link['href'])) if female_link else None            
         )
 
     # Getters
@@ -66,22 +66,23 @@ class Event(BaseDataclass, BaseScraper):
     def _extract_athlete_number(href: str) -> Optional[int]:
         import re
         match = re.search(r'athleteNumber=(\d+)', href)
-        return int(match.group(1)) if match else None
+        return str(match.group(1)) if match else None
 
-    def __post_init__(self):
-        # Ensure numeric fields are of the correct type
-        for field in ['event_id', 'finishers', 'volunteers', 'male_athlete_number', 'female_athlete_number']:
-            value = getattr(self, field)
-            if isinstance(value, str):
-                setattr(self, field, int(value) if value.isdigit() else None)
+    # def __post_init__(self):
+    #     # Ensure numeric fields are of the correct type
+    #     for field in ['finishers', 'volunteers', 'male_athlete_number', 'female_athlete_number']:
+    #         value = getattr(self, field)
+    #         if isinstance(value, str):
+    #             setattr(self, field, int(value) if value.isdigit() else None)
         
-        # Parse date if it's a string
-        if isinstance(self.event_date, str):
-            self.event_date = self._parse_date(self.event_date)
+    #     # Parse date if it's a string
+    #     if isinstance(self.event_date, str):
+    #         self.event_date = self._parse_date(self.event_date)
 
-    def to_dict(self):
-        result = super().to_dict()
-        # Convert datetime to string for JSON serialization
-        if result['date']:
-            result['date'] = result['date'].strftime("%Y-%m-%d")
-        return result
+    # def to_dict(self):
+    #     result = super().to_dict()
+    #     # Convert datetime to string for JSON serialization
+    #     # if result['event_date']:
+    #     #     result['event_date'] = result['event_date'].strftime("%Y-%m-%d")
+    #     return result
+    

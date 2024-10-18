@@ -16,35 +16,36 @@ authors = [
 classifiers = [
   "Development Status :: 4 - Beta",
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.10", 
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12", 
   "Programming Language :: Python :: Implementation :: CPython",
-  "Programming Language :: Python :: Implementation :: PyPy", 
+  "Programming Language :: Python :: Implementation :: PyPy",  
 ]
-dependencies = [
+dependencies = [ 
   "pip",
   "ipykernel",  
-  "uv",  
-  "hatch", 
-  "requests",
-  "beautifulsoup4",   
-  "flask",
-  "flask-limiter", 
-  "pyarrow",
-  "universal_pathlib==0.2.2",  
-]  
-  
+  "uv",   
+  "hatch",  
+  "requests", 
+  "beautifulsoup4",    
+  "flask", 
+  "flask-limiter",  
+  "pyarrow",    
+  "universal_pathlib==0.2.2",   
+  "polars",
+]   
+    
   
 [project.urls]
-Documentation = "https://github.com/mountainash-io/mountainash-utils-dataclasses#readme"
-Issues = "https://github.com/mountainash-io/mountainash-utils-dataclasses/issues"
-Source = "https://github.com/mountainash-io/mountainash-utils-dataclasses"  
+Documentation = "https://github.com/mountainash-io/mountainash-utils-dataclasses#readme" 
+Issues = "https://github.com/mountainash-io/mountainash-utils-dataclasses/issues" 
+Source = "https://github.com/mountainash-io/mountainash-utils-dataclasses"    
 
 #================
 # Tool: Coverage
 #================ 
-[tool.coverage.run]
+[tool.coverage.run] 
 source_pkgs = ["parkrun_scraper_sdk", "tests"]
 branch = true
 parallel = true

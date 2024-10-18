@@ -6,7 +6,7 @@ from typing import Optional, Dict, Any, List
 from unittest import result
 from datetime import datetime
 from parkrun_scraper_sdk import Country, Course, Result, Event
-
+from dateutil import parser
 
 
 from parkrun_scraper_sdk import event
@@ -126,46 +126,60 @@ class ParkrunDataExtractionOrchestrator: #(BaseHamiltonOrchestratorMixin):
         if processed_event_ids is None:
             processed_event_ids = []
 
+        #This will get the current events for the course from the website
         events = self.extract_raw_course_event_history(course)
 
         event_id_lookup = self.get_course_event_id_lookup(events)
-        processing_date = datetime.strptime(self.processing_date, "%Y-%m-%d")
+        processing_date = parser.parse(self.processing_date).date()
 
         unprocessed_events = {}
 
         for event_id in event_id_lookup:
+
             event = event_id_lookup[event_id]
+            event_date =  parser.parse(event.event_date).date()
+
             if event_id in processed_event_ids:
                 continue
-            if event.event_date > processing_date:
+            if event_date > processing_date:
+                print(f"Course {course.course_id} has an event registered for {event_date}. However, event processing is only being performed up to the processing date: {processing_date}")
                 continue
 
+            #We have already scraped the event from the web. Just return it if it meets the criteria!
+            #This could just be a boolean flag to indicate if there are new events or not.
             unprocessed_events[event_id] = event_id_lookup[event_id]
 
         return unprocessed_events
 
-    def extract_course_new_result_history(self, course: Course, processed_event_ids: List[str] = None) -> List[Dict[str, Result]]:
+    def extract_course_unprocessed_result_events(self, course: Course, processed_event_ids: List[str] = None) -> List[Event]:
 
         if processed_event_ids is None:
             processed_event_ids = []
 
+        #This will get the current events for the course from the website, if not cached
         events = self.extract_raw_course_event_history(course)
         event_id_lookup = self.get_course_event_id_lookup(events)
 
-        processing_date = datetime.strptime(self.processing_date, "%Y-%m-%d")
+        processing_date = parser.parse(self.processing_date).date()
 
-        unprocessed_results = {}
+        unprocessed_event_results = []
 
         for event_id in event_id_lookup:
             event = event_id_lookup[event_id]
+            event_date =  parser.parse(event.event_date).date()
+
             if event_id in processed_event_ids:
                 continue
-            if event.event_date > processing_date:
+            if event_date > processing_date:
+                print(f"Course {course.course_id} has an event registered for {event_date}. However, result processing is only being performed up to the processing date: {processing_date}")
                 continue
 
-            unprocessed_results[event_id] = self.extract_raw_event_results(course, event)
+            #This will get the cuurent events for the course from the website. If there are a lot, this could take a while. Parallelize?
+            unprocessed_event_results.append(event)
 
-        return unprocessed_results
+            # unprocessed_results[event_id] = self.extract_raw_event_results(course, event)
+
+        return unprocessed_event_results
 
 
 

@@ -12,18 +12,18 @@ from .event import Event
 @dataclass
 class Course(BaseDataclass, BaseScraper):
 
-    course_id: Optional[str] = None
-    country_id: Optional[str] = None
+    course_id:      Optional[str] = None
+    country_id:     Optional[str] = None
 
-    coordinates:  Optional[Tuple[float, float]] = None    
-    eventname: Optional[str] = None    
-    long_name: Optional[str] = None
-    short_name: Optional[str] = None
+    coordinates:    Optional[Tuple[str, str]] = None    
+    eventname:      Optional[str] = None    
+    long_name:      Optional[str] = None
+    short_name:     Optional[str] = None
     local_long_name: Optional[str] = None
-    country_code: Optional[str] = None
-    series_id: Optional[str] = None
-    location: Optional[str] = None
-    course_url: Optional[str] = None
+    country_code:   Optional[str] = None
+    series_id:      Optional[str] = None
+    location:       Optional[str] = None
+    course_url:     Optional[str] = None
 
     event_history: List['Event'] = field(default_factory=list)
 
@@ -65,12 +65,12 @@ class Course(BaseDataclass, BaseScraper):
             course_id=      str(course_json["id"]),
             country_id=     str(country_id),
             coordinates=    tuple(course_json["geometry"]["coordinates"]),
-            eventname=           course_json["properties"]["eventname"],
-            long_name=      course_json["properties"]["EventLongName"],
-            short_name=     course_json["properties"]["EventShortName"],
-            local_long_name=course_json["properties"]["LocalisedEventLongName"],
-            country_code=   course_json["properties"]["countrycode"],
-            series_id=      course_json["properties"]["seriesid"],
-            location=       course_json["properties"]["EventLocation"],
-            course_url=     course_url
+            eventname=      str(course_json["properties"]["eventname"]),
+            long_name=      str(course_json["properties"]["EventLongName"]),
+            short_name=     str(course_json["properties"]["EventShortName"]),
+            local_long_name=str(course_json["properties"]["LocalisedEventLongName"]),
+            country_code=   str(course_json["properties"]["countrycode"]),
+            series_id=      str(course_json["properties"]["seriesid"]),
+            location=       str(course_json["properties"]["EventLocation"]),
+            course_url=     str(course_url)
         )
