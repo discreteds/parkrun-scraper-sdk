@@ -30,10 +30,10 @@ dependencies = [
   "requests", 
   "beautifulsoup4",    
   "flask", 
-  "flask-limiter",  
+  "flask-limiter",    
   "pyarrow",    
   "universal_pathlib==0.2.2",   
-  "polars",
+  "polars", 
 ]   
     
   

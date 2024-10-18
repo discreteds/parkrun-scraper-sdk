@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../../parkrun_data"
+		},
+		{
+			"path": "../../../Dropbox/git/mountainash.io/mountainash-ai-prompts"
+		}
+	],
+	"settings": {}
+}
