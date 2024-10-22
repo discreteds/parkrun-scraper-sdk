@@ -24,7 +24,7 @@ class Event(BaseDataclass, BaseScraper):
     male_athlete_number: Optional[int] = None
     female_athlete_number: Optional[int] = None    
 
-
+    scraper_success_element = "tr.Results-table-row"
 
     @classmethod
     def _create_history_from_row(cls, row, course_id:str, country_id:str) -> 'Event':
@@ -56,8 +56,6 @@ class Event(BaseDataclass, BaseScraper):
         html =          cls._fetch_data(url)
         soup =          cls._parse_html(html)
         history_rows =  soup.select("tr.Results-table-row")
-        print(html)
-
 
         return [cls._create_history_from_row(row, course_id, country_id) for row in history_rows]
 

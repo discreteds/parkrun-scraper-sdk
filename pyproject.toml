@@ -34,8 +34,10 @@ dependencies = [
   "pyarrow",    
   "universal_pathlib==0.2.2",   
   "polars", 
+  "selenium",
+  "webdriver-manager",
 ]   
-    
+     
   
 [project.urls]
 Documentation = "https://github.com/mountainash-io/mountainash-utils-dataclasses#readme" 
@@ -43,7 +45,7 @@ Issues = "https://github.com/mountainash-io/mountainash-utils-dataclasses/issues
 Source = "https://github.com/mountainash-io/mountainash-utils-dataclasses"    
 
 #================
-# Tool: Coverage
+# Tool: Coverage 
 #================ 
 [tool.coverage.run] 
 source_pkgs = ["parkrun_scraper_sdk", "tests"]

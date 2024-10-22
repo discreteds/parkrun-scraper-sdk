@@ -11,6 +11,9 @@ class Country(BaseDataclass, BaseScraper):
     country_id:     Optional[str] = None
     country_url:    Optional[str] = None
 
+    scraper_success_element = "countries"
+
+
     @classmethod
     def get_all_countries(cls) -> List['Country']:
         url = "https://images.parkrun.com/events.json"

@@ -5,7 +5,19 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 from .session_manager import SessionManager
 
+from bs4 import BeautifulSoup
+from typing import List, Dict, Any, Optional
+from datetime import datetime
+from .session_manager import SessionManager
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+import time
+
 class BaseScraper:
+
+    scraper_success_element = None
 
     @classmethod
     def _get_headers(cls) -> Dict[str, str]:
@@ -22,6 +34,82 @@ class BaseScraper:
             'Sec-Fetch-User': '?1',
             'Cache-Control': 'max-age=0',
         }
+
+    @classmethod
+    def _fetch_data_requests(cls, url: str) -> str:
+        with SessionManager.get_session() as session:
+            headers = cls._get_headers()
+            response = session.get(url, headers=headers)
+            response.raise_for_status()
+            return response.text
+
+    @classmethod
+    def _fetch_data_selenium_headless(cls, url: str) -> str:
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+
+        try:
+            driver.get(url)
+            time.sleep(5)  # Wait for JavaScript to execute
+            return driver.page_source
+        finally:
+            driver.quit()
+
+    @classmethod
+    def _fetch_data_selenium_browser(cls, url: str) -> str:
+        chrome_options = Options()
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+
+        try:
+            driver.get(url)
+            print("Please complete any manual tests in the browser window.")
+            input("Press Enter when you have completed any necessary actions...")
+            return driver.page_source
+        finally:
+            driver.quit()
+
+    @classmethod
+    def _contains_table(cls, html: str) -> bool:
+        soup = BeautifulSoup(html, "html.parser")
+        return bool(soup.find(cls.scraper_success_element))
+
+    @classmethod
+    def _fetch_data(cls, url: str) -> str:
+        # Step 1: Try with requests
+        try:
+            html = cls._fetch_data_requests(url)
+            if cls._contains_table(html):
+                return html
+            else:
+                raise Exception("Table structure not found in HTML.")
+        except Exception as e:
+            print(f"Requests method failed: {e}")
+
+        # Step 2: Try with Selenium headless
+        try:
+            html = cls._fetch_data_selenium_headless(url)
+            if cls._contains_table(html):
+                return html
+            else:
+                raise Exception("Table structure not found in HTML.")
+        except Exception as e:
+            print(f"Selenium headless method failed: {e}")
+
+        # Step 3: Try with Selenium browser
+        print("Attempting to fetch data with a browser. You may need to complete a manual test.")
+        html = cls._fetch_data_selenium_browser(url)
+        if cls._contains_table(html):
+            return html
+        else:
+
+            raise Exception("Failed to fetch data with table structure using all methods.")
+
 
 
     @classmethod

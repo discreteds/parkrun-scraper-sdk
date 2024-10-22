@@ -27,6 +27,7 @@ class Course(BaseDataclass, BaseScraper):
 
     event_history: List['Event'] = field(default_factory=list)
 
+    scraper_success_element = "countries"
 
     def get_event_history(self) -> List['Event']:
 

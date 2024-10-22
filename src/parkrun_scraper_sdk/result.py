@@ -33,7 +33,7 @@ class Result(BaseDataclass, BaseScraper):
     is_pb:              str = "0"
     club_membership:    Optional[str] = " "    
 
-
+    scraper_success_element = "tr.Results-table-row"
 
     @classmethod
     def _create_result_from_row(cls, row, course_id: str, event_id: str, event_date: str, country_id: str) -> 'Result':

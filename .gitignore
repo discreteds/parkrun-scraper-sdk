@@ -168,3 +168,6 @@ htmlcov/
 #Sonarlint settings
 .vscode/
 .sonarlint/
+
+#Rye
+**.**lock
