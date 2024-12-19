@@ -8,7 +8,28 @@
 		},
 		{
 			"path": "../../../Dropbox/git/mountainash.io/mountainash-ai-prompts"
-		}
+		},
+		{
+			"path": "../../parkrun-admin"
+		},
+		{
+			"path": "../../parkrun-scraper-sdk"
+		},
+		{
+			"path": "/home/nathanielramm/Dropbox/git/mountainash.io/mountainash-constants"
+		},
+		{
+			"path": "/home/nathanielramm/Dropbox/git/mountainash.io/mountainash-data"
+		},
+		{
+			"path": "/home/nathanielramm/Dropbox/git/mountainash.io/mountainash-settings"
+		},
+		{
+			"path": "/home/nathanielramm/Dropbox/git/mountainash.io/mountainash-utils-dataclasses"
+		},
+		{
+			"path": "/home/nathanielramm/Dropbox/git/mountainash.io/mountainash-utils-files"
+		},
 	],
 	"settings": {}
 }
