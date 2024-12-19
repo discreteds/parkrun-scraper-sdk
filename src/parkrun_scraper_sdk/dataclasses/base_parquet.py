@@ -58,9 +58,9 @@ class BaseParquetHandler(ABC):
 
         file_path: UPath = self.get_file_path(**kwargs)
 
-        if not file_path.exists():
-            print(f"File not found: {file_path}")
-            return None
+        # if not file_path.exists():
+        #     print(f"File not found: {file_path}")
+        #     return None
 
         try:
             return polars.scan_parquet(file_path)
@@ -82,7 +82,8 @@ class BaseParquetHandler(ABC):
         if table is not None:
 
             try:
-                table_dicts =  table.collect().to_dict()
+                #Just get unique values of the id column
+                table_dicts =  table.select(id_column).collect().to_dict()
                 col = table_dicts[id_column]
                 return [str(item) for item in col]
             except Exception as e:

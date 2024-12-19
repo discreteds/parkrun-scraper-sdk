@@ -100,8 +100,8 @@ class EventsHandler(BaseParquetHandler, BaseScraper):
         self.config = config
         self.base_path = config.base_path
         self.raw_course_event_history = {}
-        self.raw_event_date_lookup = {}
-        self.raw_event_id_lookup = {}
+        self.raw_course_event_date_lookup = {}
+        self.raw_course_event_id_lookup = {}
 
 
     def init_raw_course_event_history(self, course: Course) -> None:

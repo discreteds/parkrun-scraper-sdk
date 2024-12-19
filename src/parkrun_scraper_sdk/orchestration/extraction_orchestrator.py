@@ -9,7 +9,7 @@ from upath import UPath
 from ..dataclasses.country import Country, CountriesHandler
 from ..dataclasses.course import Course, CoursesHandler
 from ..dataclasses.config import ProcessingConfig
-# from ..dataclasses.result import Result
+from ..dataclasses.result import Result, ResultsHandler
 from ..dataclasses.event import Event, EventsHandler
 from dateutil import parser
 
@@ -22,6 +22,8 @@ class ParkrunDataExtractionOrchestrator: #(BaseHamiltonOrchestratorMixin):
     # base_path = UPath|str# ("/home/nathanielramm/parkrun_data")
     countries_handler: CountriesHandler
     courses_handler: CoursesHandler
+    events_handler: EventsHandler
+    results_handler: ResultsHandler
 
     # raw_countries_lookup:   Optional[Dict[str, Country]]
     # raw_courses_lookup:     Optional[Dict[str, Course]]
@@ -39,7 +41,8 @@ class ParkrunDataExtractionOrchestrator: #(BaseHamiltonOrchestratorMixin):
         self.countries_handler: CountriesHandler = CountriesHandler(config=config)
         self.courses_handler: CoursesHandler = CoursesHandler(config=config, raw_countries=self.countries_handler.get_raw_countries())
 
-        self.events_handler: EventsHandler = EventsHandler(config)
+        self.events_handler: EventsHandler = EventsHandler(config=config)
+        self.results_handler: ResultsHandler = ResultsHandler(config=config)
 
         # self.raw_countries_lookup = None
         # self.raw_courses_lookup = None

@@ -4,14 +4,17 @@ from dataclasses import dataclass
 from typing import List, Optional
 import typing as t
 from datetime import datetime
+from dateutil import parser
+
 from .base_dataclass import BaseDataclass
 from .base_scraper import BaseScraper
 from .course import Course
-from .event import Event
+from .event import Event, EventsHandler
 from .base_parquet import BaseParquetHandler
+from .config import ProcessingConfig
 
 @dataclass
-class Result(BaseDataclass, BaseScraper):
+class Result(BaseDataclass):
 
     event_id:   Optional[str] = " "
     course_id:  Optional[str] = " "
@@ -34,11 +37,12 @@ class Result(BaseDataclass, BaseScraper):
     athlete_id:         Optional[str] = " "
     is_pb:              str = "0"
     club_membership:    Optional[str] = " "    
+    result_url:         Optional[str] = " "
 
-    scraper_success_element = "tr.Results-table-row"
+    # _scraper_success_element = "tr.Results-table-row"
 
     @classmethod
-    def _create_result_from_row(cls, row, course_id: str, event_id: str, event_date: str, country_id: str) -> 'Result':
+    def _create_result_from_row(cls, row, course_id: str, event_id: str, event_date: str, country_id: str, result_url: str) -> 'Result':
 
 
         name_cell = row.select_one('.Results-table-td--name')
@@ -82,28 +86,11 @@ class Result(BaseDataclass, BaseScraper):
             personal_best=  str(personal_best),
             athlete_id=     str(athlete_id),
             is_pb=          str(is_pb),
-            club_membership=str(club_membership)            
+            club_membership=str(club_membership),
+            result_url = str(result_url)            
         )
 
     #Getters
-    @classmethod
-    def get_latest_results(cls, course: Course) -> List['Result']:
-        return cls.get_results(course, "latestresults")
-
-    @classmethod
-    def get_results(cls, course: Course, event: Event) -> List['Result']:
-
-        course_id =     course.course_id
-        country_id =    course.country_id
-        event_id =      event.event_id
-        event_date =    event.event_date
-
-        url =           f"{course.course_url}results/{event_id}/"
-        html =          cls._fetch_data(url)
-        soup =          cls._parse_html(html)
-        result_rows =   soup.select("tr.Results-table-row")
-        return [cls._create_result_from_row(row, course_id, event_id, event_date, country_id) for row in result_rows]
-
 
     #Helper methods
     @staticmethod
@@ -124,9 +111,6 @@ class Result(BaseDataclass, BaseScraper):
         match = re.search(r'PB\s*(\d{2}:\d{2})', text)
         return match.group(1) if match else None
 
-    @classmethod
-    def get_latest_results(cls, event):
-        return cls.get_results(event, "latestresults")
 
     # def __post_init__(self):
     #     # Ensure numeric fields are of the correct type\
@@ -147,13 +131,125 @@ class Result(BaseDataclass, BaseScraper):
     #         self.gender_position = int(self.gender_position)                
 
 
-class ResultsHandler(BaseParquetHandler):
+class ResultsHandler(BaseParquetHandler, BaseScraper):
+
     domain_folder: str = "results"
     file_name_template: str = "results_{course_id}_{event_id}.parquet"
     partition_keys: List[str] = ['country_id', 'course_id']
 
-    def get_processed_result_event_ids(self, course_id: str, country_id: str ) -> List[str]:
+
+
+
+    def __init__(self, config: ProcessingConfig):
+        self.config = config
+        self.base_path = config.base_path
+
+    def get_stored_result_event_ids(self, course: Course ) -> List[str]:
+
+        course_id = course.course_id
+        country_id = course.country_id
 
         event_ids =  self.get_processed_ids('event_id', course_id=course_id, country_id=country_id, event_id="*")
         
         return list(set(event_ids))
+
+
+    def get_raw_latest_results(self, course: Course) -> List['Result']:
+
+        course_id =     course.course_id
+        country_id =    course.country_id
+
+        url =           f"{course.course_url}results/latestresults/"
+        html =          self._fetch_data(url=url)
+        soup =          self._parse_html(html=html)
+        result_rows =   soup.select(selector="tr.Results-table-row")
+
+        return [Result._create_result_from_row(row=row, course_id=course_id, event_id="latestresults", event_date=None, country_id=country_id, result_url=url) for row in result_rows]
+    
+
+
+    def get_raw_event_result(self, course: Course, event: Event) -> List['Result']:
+
+        course_id =     course.course_id
+        country_id =    course.country_id
+
+        if event.course_id != course_id:
+            raise ValueError(f"Event {event.event_id} is not from course {course_id}")
+
+        event_id =      event.event_id
+        event_date =    event.event_date
+
+        url =           f"{course.course_url}results/{event_id}/"
+        html =          self._fetch_data(url)
+        soup =          self._parse_html(html)
+        result_rows =   soup.select("tr.Results-table-row")
+
+        return [Result._create_result_from_row(row=row, course_id=course_id, event_id=event_id, event_date=event_date, country_id=country_id, result_url=url) for row in result_rows]
+
+
+    def process_event_results(self, events_handler: EventsHandler, course: Course, event: Event) -> List['Result']:
+
+        course_id = course.course_id
+        country_id = course.country_id
+
+        known_event_ids =            events_handler.get_processed_ids(id_column='event_id', course_id=course_id, country_id=country_id)
+        processed_result_event_ids = self.get_processed_ids(id_column='event_id', course_id=course_id, country_id=country_id, event_id="*")
+        fully_processed_events = [event_id for event_id in known_event_ids if event_id in processed_result_event_ids]
+
+
+        print(f"processed_result_event_ids: {processed_result_event_ids}")
+
+        #Unprocessed results that are before the processing date. This gets all of them!
+        unprocessed_result_events: List[Event] = self.extract_course_unprocessed_result_events(events_handler=events_handler, course=course, processed_event_ids=fully_processed_events)
+
+        print(f"unprocessed_result_events: {unprocessed_result_events}")
+
+        # for event in unprocessed_result_events:
+        #     event_result = self.get_raw_event_result(course=course, event=event)
+        #     self.write_parquet(event_result, course_id=course.course_id, country_id=course.country_id, event_id=event.event_id)
+
+
+    def extract_course_unprocessed_result_events(self, 
+                                                 events_handler: EventsHandler, 
+                                                 course: Course, 
+                                                 processed_event_ids: Optional[List[str]] = None) -> List[Event]:
+
+        if processed_event_ids is None:
+            processed_event_ids = []
+
+        #This will get the current events for the course from the website, if not cached
+        all_raw_events = events_handler.get_raw_course_event_history(course)
+
+        processing_date = parser.parse(self.config.processing_date).date()
+
+        unprocessed_event_results = []
+
+        unprocessed_event_results = [event for event in all_raw_events if self.is_event_processable(event=event, processing_date=processing_date, processed_event_ids=processed_event_ids)]
+
+        # for event in all_raw_events:
+
+        #     event_id = event.event_id
+        #     event_date =  parser.parse(str(event.event_date)).date()
+
+        #     if event_id in processed_event_ids:
+        #         continue
+        #     if event_date > processing_date:
+        #         print(f"Course {course.course_id} has an event registered for {event_date}. However, result processing is only being performed up to the processing date: {processing_date}")
+        #         continue
+
+        #     #This will get the cuurent events for the course from the website. If there are a lot, this could take a while. Parallelize?
+        #     unprocessed_event_results.append(event)
+
+        return unprocessed_event_results
+
+
+    def is_event_processable(self, event: Event, processing_date: datetime.date, processed_event_ids: List[str]) -> bool:
+
+        # event_id = event.event_id
+        event_date =  parser.parse(str(event.event_date)).date()
+
+        if event.event_id in processed_event_ids:
+            return False   
+        if event_date > processing_date:
+            return False
+
