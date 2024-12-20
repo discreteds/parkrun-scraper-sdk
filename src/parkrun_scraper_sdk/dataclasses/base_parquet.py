@@ -2,7 +2,7 @@ from cmath import polar
 import os
 from abc import ABC, abstractmethod
 from tkinter import E
-from typing import List, Dict, Any, Union, Optional
+from typing import List, Dict, Any, Union, Optional, Sequence
 import typing as t
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -83,7 +83,7 @@ class BaseParquetHandler(ABC):
 
             try:
                 #Just get unique values of the id column
-                table_dicts =  table.select(id_column).collect().to_dict()
+                table_dicts =  table.select(id_column).unique().collect().to_dict()
                 col = table_dicts[id_column]
                 return [str(item) for item in col]
             except Exception as e:
@@ -99,7 +99,7 @@ class BaseParquetHandler(ABC):
     
 
     def write_parquet(self, 
-                      data: List[BaseDataclass], 
+                      data: Sequence[BaseDataclass], 
                       **kwargs):
 
         items = [ item.to_dict() for item in data]

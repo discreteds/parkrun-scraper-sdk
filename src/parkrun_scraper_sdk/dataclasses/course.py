@@ -112,7 +112,6 @@ class CoursesHandler(BaseParquetHandler, BaseScraper):
 
     def init_raw_courses_lookup(self) -> None:
         # Implementation for extracting courses
-
         if self.raw_courses is None:
             raise ValueError("Raw courses are not initialized")
 
@@ -126,7 +125,6 @@ class CoursesHandler(BaseParquetHandler, BaseScraper):
             raise ValueError("Raw courses are not initialized")
 
         if self.country_course_ids is None:
-
             #initialize country_course_id dictionary
             self.country_course_ids = {course.country_id: [] for course in self.raw_courses if course.country_id is not None}
 
@@ -143,97 +141,70 @@ class CoursesHandler(BaseParquetHandler, BaseScraper):
             self.country_num_courses = {country_id: len(self.country_course_ids[country_id]) for country_id in self.country_course_ids}
 
 
-    # def init_country_course_ids(self) -> None:
-    #     #course_ids by country
-
-    #     if not self.raw_countries_lookup:
-    #         self.init_raw_countries_lookup()
-
-    #     if not self.raw_courses_lookup:
-    #         self.init_raw_courses_lookup()
-
-    #     countries = list(self.raw_countries_lookup.values())
-    #     courses =   list(self.raw_courses_lookup.values())
-
-    #     if self.country_course_ids is None:
-
-    #         self.country_course_ids = {str(country.country_id): []  for country in countries}
-    #         [self.country_course_ids[str(course.country_id)].append(str(course.course_id))  for course in courses]
-
-    # def init_country_num_courses(self) -> None:
-    #     #Number of courses by country
-
-    #     if self.country_num_courses is None:
-    #         if self.country_course_ids is None:
-    #             self.init_country_course_ids()
-
-    #         self.country_num_courses = {country_id: len(self.country_course_ids[country_id])  for country_id in self.country_course_ids}
-
-
-
-
-
+    # ================================
     # Stored Courses
+    # ================================
     def get_stored_course_ids(self) -> List[str]:
         return self.get_processed_ids('course_id')
 
-
     def get_stored_courses(self) -> List[Course]:
-
         df_courses: pl.LazyFrame|None = self.read_parquet()
 
-        if df_courses is not None:
-            return [Course(**row) for row in df_courses.collect().to_dicts()]
-        else:
-            return []
+        return [Course(**row) for row in df_courses.collect().to_dicts()] if df_courses is not None else []
+
+    ## TODO: create equivalents based on stored courses
 
 
+    # ================================
     # Raw Courses
+    # ================================
 
-
-    def get_raw_courses(self) -> List['Course']:
-        return self.raw_courses
-
-    def get_raw_courses_lookup(self) -> t.Dict[str, Course]:
-        # Implementation for extracting courses
-
-        if not self.raw_courses_lookup:
-            self.init_raw_courses_lookup()
-
-        return self.raw_courses_lookup
-
+    # Course IDs
     def get_raw_course_ids(self) -> t.List[str]:
         # Implementation for extracting countries
         raw_courses_lookup = self.get_raw_courses_lookup()
         return list(raw_courses_lookup.keys())
 
+    def get_raw_course_ids_by_country_id(self, country_id: str) -> List[str]:
+
+        if self.country_course_ids is None:
+            raise ValueError("Country course ids are not initialized")
+
+        return [course_id for course_id in self.country_course_ids[country_id]]
+
+
+    # Courses
+    def get_raw_courses(self) -> List['Course']:
+        return self.raw_courses
+
+    def get_raw_courses_lookup(self) -> t.Dict[str, Course]:
+        # Implementation for extracting courses
+        if not self.raw_courses_lookup:
+            self.init_raw_courses_lookup()
+        return self.raw_courses_lookup
 
     def get_raw_course_by_id(self, course_id: str) -> Course:
         raw_courses_lookup = self.get_raw_courses_lookup()
         return raw_courses_lookup[course_id]
 
+
     def get_raw_courses_by_country_id(self, country_id: str) -> List[Course]:
 
         if self.country_course_ids is None:
             raise ValueError("Country course ids are not initialized")
-
-        country_course_ids = self.country_course_ids[country_id]
-        return [self.get_raw_course_by_id(course_id=course_id) for course_id in country_course_ids]
+        return [self.get_raw_course_by_id(course_id=course_id) for course_id in self.country_course_ids[country_id]]
 
 
 
 
 
-    #Update Courses
+
+    # ================================
+    # Update Courses
+    # ================================
 
     def update_courses(self) -> None:
-        
         """Process countries and return list of country IDs to process."""
-        
-        # config_countries = config.country_ids
-        # config_courses = config.course_ids
-
-        # raw_course_ids = list(orchestrator.raw_courses_lookup.keys())
         raw_course_ids = self.get_raw_course_ids()
         stored_course_ids = self.get_stored_course_ids()
 

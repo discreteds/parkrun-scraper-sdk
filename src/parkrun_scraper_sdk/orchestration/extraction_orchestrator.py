@@ -49,6 +49,56 @@ class ParkrunDataExtractionOrchestrator: #(BaseHamiltonOrchestratorMixin):
         # self.country_course_ids = None
         # self.country_num_courses = None
 
+    def update_countries(self) -> None:
+        self.countries_handler.update_countries()
+
+    def update_courses(self) -> None:
+        self.courses_handler.update_courses()
+
+
+    def get_courses_in_config_scope(self) -> List[Course]:
+
+        country_course_ids_in_scope = []
+        course_course_ids_in_scope = []
+        courses_to_process = []
+
+        #All courses in the country
+        if self.config.country_ids and len(self.config.country_ids) > 0:
+            for country_id in self.config.country_ids:
+                temp_course_ids_in_scope = self.courses_handler.get_raw_course_ids_by_country_id(country_id=country_id)
+                country_course_ids_in_scope.extend(temp_course_ids_in_scope)
+
+        if self.config.course_ids and len(self.config.course_ids) > 0:
+            course_course_ids_in_scope = self.config.course_ids
+
+
+        # find the ids that are in both lists, but only if both lists are not empty
+        if len(country_course_ids_in_scope) > 0 and len(course_course_ids_in_scope) > 0:  
+
+            intersection = set(country_course_ids_in_scope).intersection(set(course_course_ids_in_scope))
+            union = set(country_course_ids_in_scope).union(set(course_course_ids_in_scope))
+
+            #Use the intersection of the two lists
+            course_ids_to_process = intersection
+
+            if intersection != union:
+                print(f"Warning: Whilst Some course ids are in both lists: {intersection}")
+                print(f"Warning: Some course ids are NOT in both lists: {set(intersection).symmetric_difference(union)}")
+                print(f"Warning: Incorrect course_ids_to_process: {set(intersection).symmetric_difference(course_course_ids_in_scope)}")
+                print(f"Warning: Excluded Country course_ids: {set(intersection).symmetric_difference(country_course_ids_in_scope)}")
+
+
+        elif len(country_course_ids_in_scope) > 0:
+            course_ids_to_process = country_course_ids_in_scope
+        elif len(course_course_ids_in_scope) > 0:
+            course_ids_to_process = course_course_ids_in_scope
+        else:
+            raise ValueError("No course ids to process")
+
+        courses_to_process = [self.courses_handler.get_raw_course_by_id(course_id=course_id) for course_id in course_ids_to_process]
+        return courses_to_process
+
+
 
     # def init_orchestrator(self) -> None:
 
