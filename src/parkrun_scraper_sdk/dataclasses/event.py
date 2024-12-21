@@ -16,18 +16,26 @@ class Event(BaseDataclass):
 
     course_id: Optional[str] = None
     country_id: Optional[str] = None
+    series_id: Optional[str] = None
     event_id: Optional[str] = None
-    event_date: Optional[datetime] = None
+    event_id_int: Optional[int] = None
+    event_date: Optional[str] = None
 
     finishers: Optional[int] = None
     volunteers: Optional[int] = None
 
+    male_athlete_number: Optional[str] = None
+    female_athlete_number: Optional[str] = None    
     male_first_athlete_name: Optional[str] = None
     female_first_athlete_name: Optional[str] = None
-    male_time: Optional[str] = None
-    female_time: Optional[str] = None
-    male_athlete_number: Optional[int] = None
-    female_athlete_number: Optional[int] = None    
+
+    male_time_formatted: Optional[str] = None
+    female_time_formatted: Optional[str] = None
+    male_time_seconds: Optional[int] = None
+    female_time_seconds: Optional[int] = None
+
+    event_url: Optional[str] = None
+    record_updated_date: Optional[str] = None
 
     # male_athlete_link: Optional[int] = None
     # female_athlete_link: Optional[int] = None    
@@ -35,42 +43,102 @@ class Event(BaseDataclass):
     _scraper_success_element = "tr.Results-table-row"
 
     @classmethod
-    def _create_event_from_row(cls, row, course_id:str, country_id:str) -> 'Event':
+    def _create_event_from_row(cls, row, course_id:str, country_id:str, series_id:str, event_url:str) -> 'Event':
 
         # print(row)
 
         male_link =     row.select_one('td:nth-of-type(5) a')
         female_link =   row.select_one('td:nth-of-type(7) a')
 
-        # male_time_raw = row.select_one('data-maletime')
-        # male_time =     male_time_raw.text.strip() if male_time_raw else ''
+        record_updated_date = datetime.now().strftime("%Y-%m-%d")
 
-        # female_time_raw = row.select_one('data-femaletime')
-        # female_time =   female_time_raw.text.strip() if female_time_raw else ''
-
-
+        event_date_raw = row.get('data-date')
+        event_date_str = datetime.strptime(event_date_raw, "%Y-%m-%d").strftime("%Y-%m-%d") if event_date_raw else " "
 
         return cls(
             course_id =             str(course_id),
             country_id =            str(country_id),
+            series_id =             str(object=series_id),
 
             event_id=               str(row.get('data-parkrun')) if row.get('data-parkrun') else None,
-            event_date=             str(row.get('data-date')),
-            finishers=              str(row.get('data-finishers')) if row.get('data-finishers') else None,
-            volunteers=             str(row.get('data-volunteers')) if row.get('data-volunteers') else None,
+            event_id_int=           int(row.get('data-parkrun')) if row.get('data-parkrun') else None,
+            event_date=             str(event_date_str),
+            finishers=              int(row.get('data-finishers')) if row.get('data-finishers') else None,
+            volunteers=             int(row.get('data-volunteers')) if row.get('data-volunteers') else None,
 
-            male_first_athlete_name=             str(row.get('data-male')) if row.get('data-male') else None,
-            female_first_athlete_name=           str(row.get('data-female')) if row.get('data-female') else None,
-            male_time=              str(row.get('data-maletime')) if row.get('data-maletime') else None,
-            female_time=            str(row.get('data-femaletime')) if row.get('data-femaletime') else None,
             male_athlete_number=    str(cls._extract_athlete_number(male_link['href'])) if male_link else None,
             female_athlete_number=  str(cls._extract_athlete_number(female_link['href'])) if female_link else None,            
+            male_first_athlete_name=             str(row.get('data-male')) if row.get('data-male') else None,
+            female_first_athlete_name=           str(row.get('data-female')) if row.get('data-female') else None,
+
+            male_time_formatted =           cls.format_time(str(row.get('data-maletime'))) if row.get('data-maletime') else None,
+            female_time_formatted=          cls.format_time(str(row.get('data-femaletime'))) if row.get('data-femaletime') else None,
+            male_time_seconds =             cls.time_to_seconds(str(row.get('data-maletime'))) if row.get('data-maletime') else None,
+            female_time_seconds=            cls.time_to_seconds(str(row.get('data-femaletime')) if row.get('data-femaletime') else None),
+
+            event_url = event_url,
+            record_updated_date = record_updated_date
         )
 
     # Getters
 
+    @classmethod
+    def format_time(cls, time_str):
+        # Remove any existing colons
+        clean_time = time_str.replace(':', '')
+        
+        # Pad left with zeros to ensure 6 digits
+        padded = clean_time.zfill(6)
+        
+        # Extract hours, minutes, seconds
+        hours = padded[0:2]
+        minutes = padded[2:4]
+        seconds = padded[4:6]
+        
+        # Combine with colons
+        return f"{hours}:{minutes}:{seconds}"
+    
+    @classmethod
+    def time_to_seconds(cls, time_str):
 
-    # Helper methods
+        formatted_time = cls.format_time(time_str)
+        # Split on colons and get components
+        hours, minutes, seconds = formatted_time.split(':')
+        
+        # Convert to integers and calculate total seconds
+        return int(hours) * 3600 + int(minutes) * 60 + int(seconds)
+
+    # # Helper methods
+    # @classmethod
+    # def format_time(cls, time_col):
+
+    #     clean_time = time_col.replace(':', '')
+    #     # Convert to string and pad left with zeros to ensure 6 digits
+    #     padded = clean_time.cast('string').lpad(6, '0')
+        
+    #     # Extract hours, minutes, seconds
+    #     hours = padded.substr(0, 2)
+    #     minutes = padded.substr(2, 2)
+    #     seconds = padded.substr(4, 2)
+        
+    #     # Combine with colons
+    #     return hours + ':' + minutes + ':' + seconds
+
+    # @classmethod
+    # def time_to_seconds(cls, time_col):
+
+    #     formatted = cls.format_time(time_col)
+    #     # Split on colons and get components
+
+    #     parts = formatted.split(':')
+    #     hours = parts[0].cast('int64')
+    #     minutes = parts[1].cast('int64')
+    #     seconds = parts[2].cast('int64')
+        
+    #     # Convert to total seconds
+    #     # hours * 3600 + minutes * 60 + seconds
+    #     return (hours * 3600) + (minutes * 60) + seconds
+
 
 
     @staticmethod
@@ -129,15 +197,16 @@ class EventsHandler(BaseParquetHandler, BaseScraper):
         course_id = course.course_id
         country_id = course.country_id
         course_url = course.course_url
-
+        series_id = course.series_id
+        
         if course_id is not None and course_id not in self.raw_course_event_history:
 
-            url =           f"{course_url}results/eventhistory/"
-            html =          self._fetch_data(url)
+            event_url =           f"{course_url}results/eventhistory/"
+            html =          self._fetch_data(url=event_url)
             soup =          self._parse_html(html)
             history_rows =  soup.select("tr.Results-table-row")
 
-            self.raw_course_event_history[course_id] = [Event._create_event_from_row(row, course_id, country_id) for row in history_rows]
+            self.raw_course_event_history[course_id] = [Event._create_event_from_row(row=row, course_id=course_id, country_id=country_id, series_id=series_id, event_url=event_url) for row in history_rows]
 
 
     # ================================

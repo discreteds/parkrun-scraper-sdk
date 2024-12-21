@@ -17,36 +17,56 @@ from .config import ProcessingConfig
 class Result(BaseDataclass):
 
     event_id:   Optional[str] = " "
+    event_id_int: Optional[int] = None
     course_id:  Optional[str] = " "
     country_id: Optional[str] = " "
+    series_id: Optional[str] = None
     event_date: Optional[str] = " "
 
-    name:       Optional[str] = " "
-    age_group:  Optional[str] = " "
-    club:       Optional[str] = " "
-    gender:     Optional[str] = " "
-    gender_position: Optional[str] = " "
-    position:   Optional[str] = " "
-    runs:       Optional[str] = " "
-    age_grade:  Optional[str] = " "
-    achievement: Optional[str] = " "
-
-    volunteer_count:    str = '0'
-    time:               str = ' '
-    personal_best:      Optional[str] = " "
     athlete_id:         Optional[str] = " "
-    is_pb:              str = "0"
+    name:       Optional[str] = " "
+    club:       Optional[str] = " "
+    club_id:    Optional[str] = " "
     club_membership:    Optional[str] = " "    
-    result_url:         Optional[str] = " "
+
+    age_group_raw: Optional[str] = " "    
+    age_group:  Optional[str] = " "
+    age_bracket_local: Optional[str] = " "
+    gender_flag_local: Optional[str] = " "
+    gender_local:      Optional[str] = " "
+    
+    # gender_position: Optional[str] = " "
+    position:   Optional[str] = " "
+    age_grade_pct:  Optional[str] = " "
+
+    time_formatted:     Optional[str] = ' '
+    time_seconds:       Optional[int] = None
+    # personal_best_formatted: Optional[str] = " "
+    # personal_best_seconds:   Optional[int] = None
+    # is_pb:                  str = "0" 
+
+    achievement: Optional[str] = " "
+    runs:       Optional[str] = " "
+    volunteer_count:    str = '0'
+
+    result_url:             Optional[str] = " "
+    record_updated_date: Optional[str] = None
 
     # _scraper_success_element = "tr.Results-table-row"
 
     @classmethod
-    def _create_result_from_row(cls, row, course_id: str, event_id: str, event_date: str, country_id: str, result_url: str) -> 'Result':
+    def _create_result_from_row(cls, row, course_id: str, event_id: str, event_date: str, country_id: str, series_id: str,result_url: str) -> 'Result':
 
+
+        record_updated_date = datetime.now().strftime("%Y-%m-%d")
 
         name_cell = row.select_one('.Results-table-td--name')
         time_cell = row.select_one('.Results-table-td--time')
+
+        club_cell = row.select_one('.Results-table-td--club')
+        club_link = club_cell.select_one('a')
+        club_url = club_link['href'] if club_link else " "
+        club_id = cls._extract_club_id(club_url) if club_url else " "
         # gender_cell = row.select_one('.Results-table-td--gender')
 
         athlete_link = name_cell.select_one('a')
@@ -55,43 +75,65 @@ class Result(BaseDataclass):
         club_icon = name_cell.select_one('.Results-table--clubIcon')
         club_membership = club_icon['title'] if club_icon else " "
 
-        detailed_div = name_cell.select_one('.detailed')
-        gender_position = cls._extract_gender_position(detailed_div.text) if detailed_div else " "
+        # detailed_div = name_cell.select_one('.detailed')
+        # gender_position = cls._extract_gender_position(detailed_div.text) if detailed_div else " "
 
         time_compact = time_cell.select_one('.compact')
         time = time_compact.text.strip() if time_compact else ''
+        time_formatted = cls.format_time(time_str=time) if time_compact else " "
+        time_seconds = cls.time_to_seconds(time_str=time) if time_compact else None
 
         time_detailed = time_cell.select_one('.detailed')
-        personal_best = cls._extract_personal_best(time_detailed.text) if time_detailed else " "
-        is_pb = 'PB' in time_detailed.text if time_detailed else False
+        # personal_best = cls._extract_personal_best(time_detailed.text) if time_detailed else " "
+        # personal_best_formatted = cls.format_time(time_str=personal_best) if personal_best else " "
+        # personal_best_seconds = cls.time_to_seconds(time_str=personal_best) if personal_best else None
+        # is_pb = 'PB' in time_detailed.text if time_detailed else False
 
-        #Format event_date as a string YYYY-MMM-DD
+        age_group_detailed = row.get('data-agegroup')
+        gender_flag_local = cls._extract_gender_flag_local(age_group_detailed) if age_group_detailed else " "
+        age_group = cls._extract_age_group(age_group_detailed) if age_group_detailed else " "
+        age_bracket_local = cls._extract_age_bracket(age_group_detailed) if age_group_detailed else " "
 
-        event_date_str = datetime.strptime(event_date, "%Y-%m-%d").strftime("%Y-%b-%d") if event_date else " "
+
+        event_date_str = datetime.strptime(event_date, "%Y-%m-%d").strftime("%Y-%m-%d") if event_date else " "
 
         return cls(
 
             course_id=      str(course_id),
             event_id=       str(event_id),
+            event_id_int=   int(event_id),
             event_date=     str(event_date_str),
             country_id=     str(country_id),
+            series_id =     str(object=series_id),
 
-            name=           str(row.get('data-name')),
-            age_group=      str(row.get('data-agegroup')),
-            club=           str(row.get('data-club')),
-            gender=         str(row.get('data-gender')),
-            gender_position=str(gender_position),
-            position=       str(row.get('data-position'))   if row.get('data-position') else " ",
-            runs=           str(row.get('data-runs'))       if row.get('data-runs') else " ",
-            age_grade=      str(row.get('data-agegrade'))   if row.get('data-agegrade') else " ",
-            achievement=    str(row.get('data-achievement')) if row.get('data-achievement') else " ",
-            volunteer_count=str(row.get('data-vols'))       if row.get('data-vols') else " ",
-            time=           str(time),
-            personal_best=  str(personal_best),
             athlete_id=     str(athlete_id),
-            is_pb=          str(is_pb),
+            name=           str(row.get('data-name')),
+            club=           str(row.get('data-club')),
+            club_id=        str(club_id) if club_id is not None else " ",
             club_membership=str(club_membership),
-            result_url = str(result_url)            
+ 
+            age_group_raw=      str(row.get('data-agegroup')),
+            age_group=         str(age_group),
+            age_bracket_local=str(age_bracket_local),
+            gender_flag_local=                  str(gender_flag_local),
+            gender_local=   str(row.get('data-gender')),
+
+            # gender_position=str(gender_position),
+            position=       str(row.get('data-position'))   if row.get('data-position') else " ",
+            age_grade_pct=      str(row.get('data-agegrade'))   if row.get('data-agegrade') else " ",
+            
+            time_formatted= str(time_formatted),
+            time_seconds=   int(time_seconds) if time_seconds is not None else None,
+            # personal_best_formatted=  str(personal_best_formatted),
+            # personal_best_seconds=   int(personal_best_seconds) if personal_best_seconds is not None else None,
+            # is_pb=          str(is_pb),
+
+            achievement=    str(row.get('data-achievement')) if row.get('data-achievement') else " ",
+            runs=           str(row.get('data-runs'))       if row.get('data-runs') else " ",
+            volunteer_count=str(row.get('data-vols'))       if row.get('data-vols') else " ",
+
+            result_url = str(result_url),     
+            record_updated_date = record_updated_date       
         )
 
     #Getters
@@ -104,16 +146,95 @@ class Result(BaseDataclass):
         return int(match.group(1)) if match else None
 
     @staticmethod
-    def _extract_gender_position(text: str) -> Optional[int]:
+    def _extract_club_id(href: str) -> Optional[str]:
         import re
-        match = re.search(r'(\d+)\s*$', text)
-        return int(match.group(1)) if match else None
+        match = re.search(r'groups/(\d+)', href)
+        return str(match.group(1)) if match else None
+
+
+    # @staticmethod
+    # def _extract_gender_position(text: str) -> Optional[int]:
+    #     import re
+    #     match = re.search(r'(\d+)\s*$', text)
+    #     return int(match.group(1)) if match else None
 
     @staticmethod
     def _extract_personal_best(text: str) -> Optional[str]:
         import re
         match = re.search(r'PB\s*(\d{2}:\d{2})', text)
         return match.group(1) if match else None
+
+
+    @staticmethod
+    def _extract_gender_flag_local(text: str) -> Optional[str]:
+        #The second character in the string, use substring of length 1
+        return text[1] if len(text) > 1 else None
+
+    @staticmethod
+    def _extract_age_group(text: str) -> Optional[str]:
+        return text[2:] if len(text) > 1 else None
+
+
+    @staticmethod
+    def _extract_age_bracket(text: str) -> Optional[str]:
+        return text[0] if len(text) > 0 else None
+
+    @classmethod
+    def format_time(cls, time_str):
+        # Remove any existing colons
+        clean_time = time_str.replace(':', '')
+        
+        # Pad left with zeros to ensure 6 digits
+        padded = clean_time.zfill(6)
+        
+        # Extract hours, minutes, seconds
+        hours = padded[0:2]
+        minutes = padded[2:4]
+        seconds = padded[4:6]
+        
+        # Combine with colons
+        return f"{hours}:{minutes}:{seconds}"
+    
+    @classmethod
+    def time_to_seconds(cls, time_str):
+
+        formatted_time = cls.format_time(time_str)        
+        # Split on colons and get components
+        hours, minutes, seconds = formatted_time.split(':')
+        
+        # Convert to integers and calculate total seconds
+        return int(hours) * 3600 + int(minutes) * 60 + int(seconds)
+
+
+    # @classmethod
+    # def format_time(cls, time_col):
+
+    #     clean_time = time_col.replace(':', '')
+    #     # Convert to string and pad left with zeros to ensure 6 digits
+    #     padded = clean_time.cast('string').lpad(6, '0')
+        
+    #     # Extract hours, minutes, seconds
+    #     hours = padded.substr(0, 2)
+    #     minutes = padded.substr(2, 2)
+    #     seconds = padded.substr(4, 2)
+        
+    #     # Combine with colons
+    #     return hours + ':' + minutes + ':' + seconds
+
+    # @classmethod
+    # def time_to_seconds(cls, time_col) -> int:
+
+    #     formatted = cls.format_time(time_col)
+    #     # Split on colons and get components
+
+    #     parts = formatted.split(':')
+    #     hours = parts[0].cast('int64')
+    #     minutes = parts[1].cast('int64')
+    #     seconds = parts[2].cast('int64')
+        
+    #     # Convert to total seconds
+    #     # hours * 3600 + minutes * 60 + seconds
+    #     return (hours * 3600) + (minutes * 60) + seconds
 
 
     # def __post_init__(self):
@@ -165,18 +286,19 @@ class ResultsHandler(BaseParquetHandler, BaseScraper):
 
         course_id =     course.course_id
         country_id =    course.country_id
-
+        series_id =     course.series_id
         url =           f"{course.course_url}results/latestresults/"
         html =          self._fetch_data(url=url)
         soup =          self._parse_html(html=html)
         result_rows =   soup.select(selector="tr.Results-table-row")
 
-        return [Result._create_result_from_row(row=row, course_id=course_id, event_id="latestresults", event_date=None, country_id=country_id, result_url=url) for row in result_rows]
+        return [Result._create_result_from_row(row=row, course_id=course_id, event_id="latestresults", event_date=None, country_id=country_id, series_id=series_id, result_url=url) for row in result_rows]
 
     def get_raw_event_result(self, course: Course, event: Event) -> List['Result']:
 
         course_id =     course.course_id
         country_id =    course.country_id
+        series_id =     course.series_id
 
         if event.course_id != course_id:
             raise ValueError(f"Event {event.event_id} is not from course {course_id}")
@@ -189,7 +311,7 @@ class ResultsHandler(BaseParquetHandler, BaseScraper):
         soup =          self._parse_html(html)
         result_rows =   soup.select("tr.Results-table-row")
 
-        return [Result._create_result_from_row(row=row, course_id=course_id, event_id=event_id, event_date=event_date, country_id=country_id, result_url=url) for row in result_rows]
+        return [Result._create_result_from_row(row=row, course_id=course_id, event_id=event_id, event_date=event_date, country_id=country_id, series_id=series_id, result_url=url) for row in result_rows]
 
 
     # ================================
@@ -233,8 +355,10 @@ class ResultsHandler(BaseParquetHandler, BaseScraper):
         event_date =  datetime.strptime( str(raw_event_date), "%Y-%m-%d") if raw_event_date is not None else None
 
         if event_date is None:
+            print(f"Event {event_id} has no event date")
             return False
         if event_date > processing_date:
+            print(f"Event {event_id} is from the future")
             return False
 
         return True

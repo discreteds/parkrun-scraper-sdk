@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
+from datetime import datetime
 import typing as t
 import polars as pl
 from .base_dataclass import BaseDataclass
@@ -28,6 +29,8 @@ class Course(BaseDataclass):
     location:       Optional[str] = None
     course_url:     Optional[str] = None
 
+    record_updated_date: Optional[str] = None
+
     # event_history: List['Event'] = field(default_factory=list)
 
     scraper_success_element = "countries"
@@ -45,6 +48,8 @@ class Course(BaseDataclass):
 
     @classmethod
     def create_course_from_raw_json(cls, course_json: dict, countries_json: List[dict]) -> 'Course':
+
+        record_updated_date = datetime.now().strftime("%Y-%m-%d")
 
         country_id =str(course_json["properties"]["countrycode"])
         eventname=course_json["properties"]["eventname"]
@@ -66,7 +71,8 @@ class Course(BaseDataclass):
             country_code=   str(course_json["properties"]["countrycode"]),
             series_id=      str(course_json["properties"]["seriesid"]),
             location=       str(course_json["properties"]["EventLocation"]),
-            course_url=     str(course_url)
+            course_url=     str(course_url),
+            record_updated_date= record_updated_date
         )
 
 
@@ -151,6 +157,11 @@ class CoursesHandler(BaseParquetHandler, BaseScraper):
         df_courses: pl.LazyFrame|None = self.read_parquet()
 
         return [Course(**row) for row in df_courses.collect().to_dicts()] if df_courses is not None else []
+
+
+    def get_stored_record_updated_date(self) -> List[str]:
+        return self.get_processed_ids(id_column='record_updated_date')
+
 
     ## TODO: create equivalents based on stored courses
 

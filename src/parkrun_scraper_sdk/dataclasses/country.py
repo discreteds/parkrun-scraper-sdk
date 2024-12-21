@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import List, Optional
 import typing as t
+from datetime import datetime
 import polars as pl
 from .base_dataclass import BaseDataclass
 from .base_scraper import BaseScraper
@@ -17,15 +18,20 @@ class Country(BaseDataclass):
     country_id:     Optional[str] = None
     country_url:    Optional[str] = None
 
+    record_updated_date: Optional[str] = None
+
     scraper_success_element = "countries"
 
 
     @classmethod
     def create_country_from_json(cls, country_id: str, country_data: dict) -> 'Country':
 
+        record_updated_date = datetime.now().strftime("%Y-%m-%d")
+
         return cls(
             country_id=         str(country_id),
-            country_url=        f"https://{country_data['url']}"
+            country_url=        f"https://{country_data['url']}",
+            record_updated_date=record_updated_date
         )
 
     def __post_init__(self):
@@ -80,6 +86,10 @@ class CountriesHandler(BaseParquetHandler, BaseScraper):
     # Stored Countries
     def get_stored_country_ids(self) -> List[str]:
         return self.get_processed_ids(id_column='country_id')
+
+    def get_stored_record_updated_date(self) -> List[str]:
+        return self.get_processed_ids(id_column='record_updated_date')
+
 
 
     def get_stored_countries(self) -> List[Country]:
