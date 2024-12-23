@@ -93,6 +93,7 @@ class CoursesHandler(BaseParquetHandler, BaseScraper):
     country_num_courses:    Optional[t.Dict[str, int]] = None
 
 
+
     def __init__(self, config: ProcessingConfig, raw_countries: List[Country]):
 
         self.config = config

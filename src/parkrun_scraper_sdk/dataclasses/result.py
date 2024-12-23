@@ -1,10 +1,11 @@
 # file: src/parkrun_scraper_sdk/result.py
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Dict
 import typing as t
 from datetime import datetime
 from dateutil import parser
+import polars
 
 from .base_dataclass import BaseDataclass
 from .base_scraper import BaseScraper
@@ -180,7 +181,11 @@ class Result(BaseDataclass):
         return text[0] if len(text) > 0 else None
 
     @classmethod
-    def format_time(cls, time_str):
+    def format_time(cls, time_str: Optional[str] = None) -> str|None:
+
+        if time_str is None:
+            return None
+
         # Remove any existing colons
         clean_time = time_str.replace(':', '')
         
@@ -196,9 +201,11 @@ class Result(BaseDataclass):
         return f"{hours}:{minutes}:{seconds}"
     
     @classmethod
-    def time_to_seconds(cls, time_str):
+    def time_to_seconds(cls, time_str: Optional[str] = None) -> int|None:
 
         formatted_time = cls.format_time(time_str)        
+        if formatted_time is None:
+            return None
         # Split on colons and get components
         hours, minutes, seconds = formatted_time.split(':')
         
@@ -262,10 +269,12 @@ class ResultsHandler(BaseParquetHandler, BaseScraper):
     file_name_template: str = "results_{course_id}_{event_id}.parquet"
     partition_keys: List[str] = ['country_id', 'course_id']
 
+    processed_course_event_ids: Dict[str, List[str]] = None
 
     def __init__(self, config: ProcessingConfig):
         self.config = config
         self.base_path = config.base_path
+        self.init_stored_result_event_ids_by_course()
 
     # ================================
     # Stored Result Getters
@@ -273,11 +282,38 @@ class ResultsHandler(BaseParquetHandler, BaseScraper):
     def get_stored_result_event_ids(self, course: Course ) -> List[str]:
 
         course_id = course.course_id
-        country_id = course.country_id
+        if self.processed_course_event_ids is None:
+            self.init_stored_result_event_ids_by_course()
 
-        event_ids =  self.get_processed_ids('event_id', course_id=course_id, country_id=country_id, event_id="*")
-        
-        return list(set(event_ids))
+        return self.processed_course_event_ids[course_id] if course_id in self.processed_course_event_ids else []
+    
+
+    def init_stored_result_event_ids_by_course(self) -> t.Dict[str, List[str]]:
+
+        if self.processed_course_event_ids is None or self.processed_course_event_ids == {}:
+
+            print("Initialising stored result event ids by course")
+
+            table: polars.LazyFrame|None = self.read_parquet(country_id="*", course_id="*",  event_id="*")
+
+            if table is not None:
+
+                #Just get unique values of the id column
+                course_ids: Dict[str, List[str]] = table.select("course_id").unique().collect().to_dict(as_series=False)
+                course_event_ids: List[Dict[str, str]] = table.select("course_id", "event_id").unique().collect().to_dicts()
+
+                #unique course_id
+                unique_course_ids: t.Set[str] = set(course_ids["course_id"])
+                self.processed_course_event_ids = {course_id: [] for course_id in unique_course_ids}
+                
+                #populate processed_course_event_ids dictionary
+                {self.processed_course_event_ids[event_record["course_id"]].append(event_record["event_id"]) for event_record in course_event_ids}
+            else:
+                return {}
+
+        return self.processed_course_event_ids
+
+
 
     # ================================
     # Raw Result Getters
@@ -323,15 +359,16 @@ class ResultsHandler(BaseParquetHandler, BaseScraper):
         country_id = course.country_id
         processing_date: datetime = datetime.strptime(self.config.processing_date, "%Y-%m-%d")
 
-        known_event_ids =            events_handler.get_processed_ids(id_column='event_id', course_id=course_id, country_id=country_id)
-        processed_result_event_ids = self.get_processed_ids(id_column='event_id', course_id=course_id, country_id=country_id, event_id="*")
+        known_event_ids =            events_handler.get_stored_course_event_ids(course=course)
+        # processed_result_event_ids = self.get_processed_ids(id_column='event_id', course_id=course_id, country_id=country_id, event_id="*")
+        # fully_processed_result_event_ids =  [event_id for event_id in known_event_ids if event_id in processed_result_event_ids]
+        fully_processed_result_event_ids = self.get_stored_result_event_ids(course=course)
 
-        fully_processed_result_event_ids =  [event_id for event_id in known_event_ids if event_id in processed_result_event_ids]
-        unprocessed_result_event_ids =      [event_id for event_id in known_event_ids if event_id not in processed_result_event_ids]
-
+        unprocessed_result_event_ids =      [event_id for event_id in known_event_ids if event_id not in fully_processed_result_event_ids]
         processable_result_event_ids = [event_id for event_id in unprocessed_result_event_ids if self.is_event_result_processable(events_handler=events_handler, course=course, event_id=event_id, processing_date=processing_date)]
 
-        print(f"processed_result_event_ids: {fully_processed_result_event_ids}")
+        print(f"known_event_ids: {known_event_ids}")
+        print(f"fully_processed_result_event_ids: {fully_processed_result_event_ids}")
         print(f"unprocessed_result_events: {unprocessed_result_event_ids}")
         print(f"processable_result_events: {processable_result_event_ids}")
 
@@ -340,7 +377,6 @@ class ResultsHandler(BaseParquetHandler, BaseScraper):
             event: Event|None = events_handler.get_raw_course_event_id_lookup(course=course, event_id=event_id)
 
             if event is not None:
-
                 event_result = self.get_raw_event_result(course=course, event=event)
                 self.write_parquet(event_result, course_id=course.course_id, country_id=course.country_id, event_id=event.event_id)
 
@@ -355,10 +391,8 @@ class ResultsHandler(BaseParquetHandler, BaseScraper):
         event_date =  datetime.strptime( str(raw_event_date), "%Y-%m-%d") if raw_event_date is not None else None
 
         if event_date is None:
-            print(f"Event {event_id} has no event date")
             return False
         if event_date > processing_date:
-            print(f"Event {event_id} is from the future")
             return False
 
         return True

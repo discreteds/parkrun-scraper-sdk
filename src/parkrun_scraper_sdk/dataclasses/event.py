@@ -83,7 +83,12 @@ class Event(BaseDataclass):
     # Getters
 
     @classmethod
-    def format_time(cls, time_str):
+    def format_time(cls, time_str: Optional[str] = None) -> str|None:
+
+
+        if time_str is None:
+            return None
+
         # Remove any existing colons
         clean_time = time_str.replace(':', '')
         
@@ -99,9 +104,13 @@ class Event(BaseDataclass):
         return f"{hours}:{minutes}:{seconds}"
     
     @classmethod
-    def time_to_seconds(cls, time_str):
+    def time_to_seconds(cls, time_str: Optional[str] = None) -> int|None:
 
         formatted_time = cls.format_time(time_str)
+
+        if formatted_time is None:
+            return None
+
         # Split on colons and get components
         hours, minutes, seconds = formatted_time.split(':')
         
@@ -179,6 +188,7 @@ class EventsHandler(BaseParquetHandler, BaseScraper):
     raw_course_event_id_date_lookup: t.Dict[str, t.Dict[str, datetime]]
     raw_course_event_id_lookup: t.Dict[str, t.Dict[str, Event]]
 
+    processed_course_event_ids: t.Dict[str, List[str]] = None
 
     def __init__(self, config: ProcessingConfig):
         self.config = config
@@ -188,6 +198,7 @@ class EventsHandler(BaseParquetHandler, BaseScraper):
         self.raw_course_event_id_date_lookup = {}
         self.raw_course_event_id_lookup = {}
 
+        self.init_stored_course_event_ids_by_course()
 
     # ================================
     # Raw Event Initialisers
@@ -328,6 +339,52 @@ class EventsHandler(BaseParquetHandler, BaseScraper):
 
         return self.get_processed_ids(id_column='event_id', course_id=course_id, country_id=country_id)    
 
+    def get_stored_course_event_dates(self, course: Course) -> List[str]:
+
+        course_id = course.course_id
+        country_id = course.country_id
+
+        return self.get_processed_ids(id_column='event_date', course_id=course_id, country_id=country_id)    
+
+
+    # ================================
+    # Stored Result Getters
+    # ================================
+    def get_stored_course_event_ids(self, course: Course ) -> List[str]:
+
+        course_id = course.course_id
+        if self.processed_course_event_ids is None:
+            self.init_stored_course_event_ids_by_course()
+        return self.processed_course_event_ids[course_id] if course_id in self.processed_course_event_ids else []
+    
+
+    def init_stored_course_event_ids_by_course(self) -> t.Dict[str, List[str]]:
+
+        if self.processed_course_event_ids is None or self.processed_course_event_ids == {}:
+
+            print("Initialising stored course event ids by course")
+
+            table: pl.LazyFrame|None = self.read_parquet(country_id="*", course_id="*",  event_id="*")
+
+            if table is not None:
+                #Just get unique values of the id column
+                course_ids: t.Dict[str, List[str]] = table.select("course_id").unique().collect().to_dict(as_series=False)
+                course_event_ids: List[t.Dict[str, str]] = table.select("course_id", "event_id").unique().collect().to_dicts()
+
+                #unique course_id
+                unique_course_ids: t.Set[str] = set(course_ids["course_id"])
+                self.processed_course_event_ids = {course_id: [] for course_id in unique_course_ids}
+                
+                #populate processed_course_event_ids dictionary
+                {self.processed_course_event_ids[event_record["course_id"]].append(event_record["event_id"]) for event_record in course_event_ids}
+            else:
+                return {}
+            
+        return self.processed_course_event_ids
+
+
+
+
 
     # ================================
     # Stored Event Updaters
@@ -335,13 +392,27 @@ class EventsHandler(BaseParquetHandler, BaseScraper):
     def update_event_history(self, course: Course) -> None:
         """Process countries and return list of country IDs to process."""
 
-        raw_event_history_ids = self.get_raw_course_event_ids(course=course)
-        stored_event_history_ids = self.get_stored_course_event_ids(course=course)
+        stored_event_dates = self.get_stored_course_event_dates(course=course)
+        max_event_date = max(stored_event_dates) if stored_event_dates else None
 
-        new_ids = [id_ for id_ in raw_event_history_ids if id_ not in stored_event_history_ids]
+        max_date = datetime.strptime(max_event_date, "%Y-%m-%d") if max_event_date is not None else None
+        processing_date = datetime.strptime(self.config.processing_date, "%Y-%m-%d")
 
-        if len(new_ids) > 0:
-            print(f"Storing new event ids for course{course.course_id} : {new_ids}")
-            raw_event_history = self.get_raw_course_event_history(course=course)
-            self.write_parquet(data=raw_event_history, course_id=course.course_id, country_id=course.country_id)
+        if max_date is None or max_date < processing_date:
+            updatable = True
+        else:
+            print(f"Max event date {max_event_date} is greater than or equal to processing date {self.config.processing_date}")
+            updatable = False
+
+        if updatable:
+            print(f"Updating event history for course {course.course_id}")
+            raw_event_history_ids = self.get_raw_course_event_ids(course=course)
+            stored_event_history_ids = self.get_stored_course_event_ids(course=course)
+
+            new_ids = [id_ for id_ in raw_event_history_ids if id_ not in stored_event_history_ids]
+
+            if len(new_ids) > 0 :
+                print(f"Storing new event ids for course{course.course_id} : {new_ids}")
+                raw_event_history = self.get_raw_course_event_history(course=course)
+                self.write_parquet(data=raw_event_history, course_id=course.course_id, country_id=course.country_id)
 
