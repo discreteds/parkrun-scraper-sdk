@@ -73,9 +73,10 @@ def CacheToDict():
 app = Flask(__name__)
 
 limiter = Limiter(
-    app,
     key_func=get_remote_address,
+    app=app,
     default_limits=["15000 per day", "600 per hour"]
+)
 )
 
 @app.route("/")
